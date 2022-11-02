@@ -10,7 +10,7 @@ from PIL import Image
 from einops import rearrange
 from tqdm import tqdm
 
-
+# SIZE = 1024, 1024
 @click.command()
 @click.argument("inpath", type=click.STRING)
 @click.argument("outpath", type=click.STRING)
