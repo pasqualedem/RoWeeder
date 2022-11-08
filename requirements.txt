@@ -1,3 +1,4 @@
 ezdl
 super_gradients
 scikit-learn
+opencv-python

@@ -1,0 +1,6 @@
+.idea
+dataset
+venv
+
+*.pth
+*.pyc
