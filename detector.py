@@ -5,6 +5,7 @@ import torch
 from ezdl.datasets import WeedMapDatasetInterface
 from ezdl.models.lawin import Laweed
 from torchvision.transforms import Normalize, ToTensor, Compose
+from histogramdd import torch_histogramdd
 
 MODEL_PATH = "Laweed-1v1r4nzz_latest.pth"
 TRAIN_FOLDERS = ['000', '001', '002', '004']
@@ -62,14 +63,15 @@ class CropRowDetector:
         means, stds = WeedMapDatasetInterface.get_mean_std(TRAIN_FOLDERS, CHANNELS, SUBSET)
         self.transform = Normalize(means, stds)
 
-    def hough(self, input_img, connection_dataframe):
-        width, height = input_img.shape
+        self.mean_crop_size = None
+        self.diag_len = None
 
-        step_rho = 1
-        step_theta = 1
+    def hough(self, shape, connection_dataframe):
+        width, height = shape
+
         d = np.sqrt(np.square(height) + np.square(width))
-        thetas = np.arange(0, 180, step=step_theta)
-        rhos = np.arange(-d, d, step=step_rho)
+        thetas = np.arange(0, 180, step=self.step_theta)
+        rhos = np.arange(-d, d, step=self.step_rho)
         cos_thetas = np.cos(np.deg2rad(thetas))
         sin_thetas = np.sin(np.deg2rad(thetas))
 
@@ -80,11 +82,42 @@ class CropRowDetector:
             point = (y - height / 2, x - width / 2)
             for theta_idx in range(len(thetas)):
                 rho = (point[1] * cos_thetas[theta_idx]) + (point[0] * sin_thetas[theta_idx])
-                theta = thetas[theta_idx]
                 rho_idx = np.argmin(np.abs(rhos - rho))
-                accumulator[theta, rho_idx - displacement: rho_idx + displacement] += 1
+                accumulator[theta_idx, rho_idx - displacement: rho_idx + displacement + 1] += 1
         theta_vec, rho_vec = np.where(accumulator > self.threshold)
-        return pd.DataFrame({'theta': theta_vec, 'rho': rho_vec - d})
+        return pd.DataFrame({'theta': theta_vec * self.step_theta, 'rho': rho_vec * self.step_rho - d})
+
+    def hough_vec(self, shape, connection_dataframe):
+        width, height = shape
+
+        d = np.sqrt(np.square(height) + np.square(width))
+
+        thetas = torch.arange(0, 180, step=self.step_theta)
+        rhos = torch.arange(-d, d, step=self.step_rho)
+        cos_thetas = torch.cos(torch.deg2rad(thetas))
+        sin_thetas = torch.sin(torch.deg2rad(thetas))
+
+        # Retrieve all the points from dataframe
+        points = torch.stack([torch.tensor(connection_dataframe['cy'].values - height / 2),
+                              torch.tensor(connection_dataframe['cx'].values - width / 2)], dim=1)
+
+        # Calculate the rhos values with dot product
+        rho_values = torch.matmul(points.float(), torch.stack([sin_thetas, cos_thetas]))
+
+        # Calculate the displacement for each point to add more lines
+
+        shapes = torch.stack([torch.tensor(connection_dataframe['width'].values),
+                              torch.tensor(connection_dataframe['height'].values)], dim=1)
+        displacement = shapes.max(dim=1).values // 2
+
+        # Hough accumulator array of theta vs rho
+        accumulator, edges = torch_histogramdd(
+            thetas, rhos, rho_values,
+            displacements=displacement
+        )
+        accumulator = accumulator.numpy()
+        theta_vec, rho_vec = np.where(accumulator > self.threshold)
+        return pd.DataFrame({'theta': theta_vec * self.step_theta, 'rho': rho_vec * self.step_rho - d})
 
     def detect_crop(self, input_img):
         if self.use_cuda:
@@ -103,14 +136,16 @@ class CropRowDetector:
         (num_labels, labels, stats, centroids) = cv2.connectedComponentsWithStats(input_img, connectivity=connectivity,
                                                                                   ltype=cv2.CV_32S)
         num_pixels = stats[:, 4]
-        return pd.DataFrame({"cx": centroids[:, 0], "cy": centroids[:, 1],
+        conn = pd.DataFrame({"cx": centroids[:, 0], "cy": centroids[:, 1],
                              "bx": stats[:, 0], "by": stats[:, 1], "width": stats[:, 2], "height": stats[:, 3],
                              "num_pixels": num_pixels}).drop(0)  # Remove first
+        self.mean_crop_size = (conn['width'].mean() + conn['height'].mean()) / 2
+        return conn
 
     def calculate_mask(self, shape, connection_dataframe):
         displ_mask = np.zeros(shape, dtype=np.uint8)
         for idx, (x, y, bx, by, width, height, num_pixels) in connection_dataframe.iterrows():
-            displacement = self.displacement(width, height)
+            displacement = self.displacement(width, height) // 2
             c1 = int(x - displacement), int(y - displacement)
             c2 = int(x + displacement), int(y + displacement)
             # cv.circle(imgc, (int(x), int(y)), 10, (255, 0, 0), 5)
@@ -119,17 +154,17 @@ class CropRowDetector:
 
     def filter_lines(self, lines_df):
         mode = lines_df['theta'].mode()[0]
-        # theta_rho_reduced = theta_rho
-        # theta_rho_reduced = theta_rho[(theta_rho['theta'] > median - 10) & (theta_rho['theta'] < median + 10)]
-        # theta_rho_reduced = theta_rho[theta_rho['theta'] == int(median)]
-        # theta_rho_reduced = theta_rho[theta_rho['theta'] == int(mode)]
         return lines_df[in_circular_interval(mode - self.angle_error, mode + self.angle_error, lines_df['theta'], 180)]
 
+    def group_lines_per_row(self, lines):
+        lines['sign'] = np.sign(np.cos(np.deg2rad(lines['theta'])))
+        lines['frho'] = lines['rho'] * np.sign(np.cos(np.deg2rad(lines['theta'])))
+
     def predict(self, input_img):
-        width, height = input_img.shape[1:]
+        width, height = input_img.shape[2:]
         crop_mask = self.detect_crop(input_img)
         connectivity_df = self.calculate_connectivity(crop_mask.squeeze(0).cpu().numpy().astype(np.uint8))
         enhanced_mask = self.calculate_mask((width, height), connectivity_df)
-        theta_rho = self.hough(enhanced_mask, connectivity_df)
+        theta_rho = self.hough(enhanced_mask.shape, connectivity_df)
         lines = self.filter_lines(theta_rho)
         return lines
