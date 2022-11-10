@@ -5,7 +5,7 @@ import torch
 from ezdl.datasets import WeedMapDatasetInterface
 from ezdl.models.lawin import Laweed
 from torchvision.transforms import Normalize, ToTensor, Compose
-from histogramdd import torch_histogramdd
+from histogramdd import histogramdd
 
 MODEL_PATH = "Laweed-1v1r4nzz_latest.pth"
 TRAIN_FOLDERS = ['000', '001', '002', '004']
@@ -111,7 +111,7 @@ class CropRowDetector:
         displacement = shapes.max(dim=1).values // 2
 
         # Hough accumulator array of theta vs rho
-        accumulator, edges = torch_histogramdd(
+        accumulator, edges = histogramdd(
             thetas, rhos, rho_values,
             displacements=displacement
         )
