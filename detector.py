@@ -5,6 +5,7 @@ import torch
 from ezdl.datasets import WeedMapDatasetInterface
 from ezdl.models.lawin import Laweed
 from torchvision.transforms import Normalize, ToTensor, Compose
+from torch.nn import functional as F
 from histogramdd import histogramdd
 
 MODEL_PATH = "Laweed-1v1r4nzz_latest.pth"
@@ -13,15 +14,12 @@ CHANNELS = ['R', 'G', 'B']
 SUBSET = 'rededge'
 
 
-def in_circular_interval(inf, sup, value, interval_max):
-    sup = sup % interval_max
-    inf = inf % interval_max
-    if sup > inf:
-        return (inf < value) & (value < sup)
-    elif sup == inf:
-        return value == inf
-    else:
-        return (value < sup) | (value > inf)
+def get_circular_interval(inf, sup, interval_max):
+    if sup < inf:
+        return (0, sup),  (inf, interval_max)
+    if sup > interval_max:
+        return (0, sup - interval_max), (inf, interval_max)
+    return (inf, sup),
 
 
 def max_displacement(width, height):
@@ -91,9 +89,10 @@ class CropRowDetector:
         width, height = shape
 
         d = np.sqrt(np.square(height) + np.square(width))
+        self.diag_len = d + 1
 
         thetas = torch.arange(0, 180, step=self.step_theta)
-        rhos = torch.arange(-d, d, step=self.step_rho)
+        rhos = torch.arange(-d, d + 1, step=self.step_rho)
         cos_thetas = torch.cos(torch.deg2rad(thetas))
         sin_thetas = torch.sin(torch.deg2rad(thetas))
 
@@ -115,9 +114,7 @@ class CropRowDetector:
             thetas, rhos, rho_values,
             displacements=displacement
         )
-        accumulator = accumulator.numpy()
-        theta_vec, rho_vec = np.where(accumulator > self.threshold)
-        return pd.DataFrame({'theta': theta_vec * self.step_theta, 'rho': rho_vec * self.step_rho - d})
+        return accumulator
 
     def detect_crop(self, input_img):
         if self.use_cuda:
@@ -145,26 +142,55 @@ class CropRowDetector:
     def calculate_mask(self, shape, connection_dataframe):
         displ_mask = np.zeros(shape, dtype=np.uint8)
         for idx, (x, y, bx, by, width, height, num_pixels) in connection_dataframe.iterrows():
-            displacement = self.displacement(width, height) // 2
+            displacement = self.displacement(width, height)
             c1 = int(x - displacement), int(y - displacement)
             c2 = int(x + displacement), int(y + displacement)
             # cv.circle(imgc, (int(x), int(y)), 10, (255, 0, 0), 5)
             cv2.rectangle(displ_mask, c1, c2, 255, -1)
         return displ_mask
 
-    def filter_lines(self, lines_df):
-        mode = lines_df['theta'].mode()[0]
-        return lines_df[in_circular_interval(mode - self.angle_error, mode + self.angle_error, lines_df['theta'], 180)]
+    def filter_lines(self, accumulator):
+        filtered = F.threshold(accumulator, self.threshold, 0)
+        mode = filtered.sum(axis=1).argmax().item()
+        intervals = get_circular_interval(mode - self.angle_error, mode + self.angle_error + 1, 180 // self.step_theta)
+        filtered = torch.concat([filtered[inf:sup] for inf, sup in intervals])
+        theta_index = torch.concat([torch.arange(inf, sup) for inf, sup in intervals])
+        return filtered, theta_index
 
-    def group_lines_per_row(self, lines):
-        lines['sign'] = np.sign(np.cos(np.deg2rad(lines['theta'])))
-        lines['frho'] = lines['rho'] * np.sign(np.cos(np.deg2rad(lines['theta'])))
+    def positivize_rhos(self, accumulator, theta_index):
+        chunk_size = int(self.diag_len)
+        negatives, positives = accumulator.split(chunk_size, dim=1)
+        theta_index = torch.concat([theta_index, theta_index + 180])
+        accumulator = torch.concat([positives, negatives.flip(dims=[1])])
+        return accumulator, theta_index
+
+    def cluster_lines(self, acc: torch.Tensor, thetas_idcs):
+        tol = 2
+        thetas_rhos = torch.stack(torch.where(acc > 0), dim=1)
+        thetas_rhos[:, 0] = thetas_idcs[thetas_rhos[:, 0]]
+        cluster_indices = []
+        prec_i = 0
+        # TODO RHOS ARE NOT ORDERED!!!!!!!!!!
+        for i in range(1, thetas_rhos.shape[0]):
+            if abs(thetas_rhos[i][1] - thetas_rhos[i - 1][1]) > tol:
+                cluster_indices.append(i - prec_i)
+                prec_i = i
+        cluster_indices.append(i - prec_i + 1)
+        clustered = thetas_rhos.split(cluster_indices)
+        return clustered
+
+    def get_medians(self, clusters):
+        medians = [cluster[len(cluster)//2] for cluster in clusters]
+        return medians
 
     def predict(self, input_img):
         width, height = input_img.shape[2:]
         crop_mask = self.detect_crop(input_img)
         connectivity_df = self.calculate_connectivity(crop_mask.squeeze(0).cpu().numpy().astype(np.uint8))
         enhanced_mask = self.calculate_mask((width, height), connectivity_df)
-        theta_rho = self.hough(enhanced_mask.shape, connectivity_df)
-        lines = self.filter_lines(theta_rho)
-        return lines
+        accumulator = self.hough_vec(enhanced_mask.shape, connectivity_df)
+        filtered_acc, theta_index = self.filter_lines(accumulator)
+        pos_acc, theta_index = self.positivize_rhos(filtered_acc, theta_index)
+        clusters = self.cluster_lines(pos_acc, theta_index)
+        median_theta, median_rhos = self.get_median_theta_rhos(pos_acc, theta_index, clusters)
+        return median_theta, median_rhos

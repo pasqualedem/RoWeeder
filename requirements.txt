@@ -2,3 +2,4 @@ ezdl
 super_gradients
 scikit-learn
 opencv-python
+git+https://github.com/zsef123/Connected_components_PyTorch.git
