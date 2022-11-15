@@ -1,1 +1,3 @@
+from detector import CropRowDetector
+
 
