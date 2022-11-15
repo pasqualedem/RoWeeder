@@ -139,7 +139,6 @@ class CropRowDetector:
         seg_class = seg.argmax(1)
         seg_class[seg_class == 2] = 255
         seg_class[seg_class == 1] = 255
-        seg_class = seg_class.cpu()
         return seg_class
 
     def calculate_connectivity_cv2(self, input_img):
@@ -255,14 +254,25 @@ class CropRowDetector:
         medians = torch.stack([theta_rhos[(i+j)//2] for i, j in previous_iterator(cluster_index, return_first=False)])
         return medians
 
-    def predict(self, input_img):
+    def predict(self, input_img, return_mean_crop_size=False):
+        """
+        Detect rows
+        Args:
+            input_img: Input tensor
+            return_mean_crop_size: tells if return the mean crop size
+
+        Returns:
+
+        """
         width, height = input_img.shape[2:]
         crop_mask = self.detect_crop(input_img)
-        connectivity_df = self.calculate_connectivity(crop_mask.squeeze(0).cpu().numpy().astype(np.uint8))
+        connectivity_df = self.calculate_connectivity(crop_mask.squeeze(0).type(torch.uint8))
         enhanced_mask = self.calculate_mask((width, height), connectivity_df)
-        accumulator = self.hough_vec(enhanced_mask.shape, connectivity_df)
+        accumulator = self.hough(enhanced_mask.shape, connectivity_df)
         filtered_acc, theta_index = self.filter_lines(accumulator)
         pos_acc, theta_index = self.positivize_rhos(filtered_acc, theta_index)
         thetas_rhos, clusters_index = self.cluster_lines(pos_acc, theta_index)
         medians = self.get_medians(thetas_rhos, clusters_index)
+        if return_mean_crop_size:
+            return medians, self.mean_crop_size
         return medians
