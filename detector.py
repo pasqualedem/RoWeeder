@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import torch
+from cc_torch import connected_components_labeling
 from ezdl.datasets import WeedMapDatasetInterface
 from ezdl.models.lawin import Laweed
 from torchvision.transforms import Normalize, ToTensor, Compose
@@ -129,7 +130,7 @@ class CropRowDetector:
         return seg_class
 
     def calculate_connectivity(self, input_img):
-        connectivity = 4
+        connectivity = 8
         (num_labels, labels, stats, centroids) = cv2.connectedComponentsWithStats(input_img, connectivity=connectivity,
                                                                                   ltype=cv2.CV_32S)
         num_pixels = stats[:, 4]
@@ -139,14 +140,42 @@ class CropRowDetector:
         self.mean_crop_size = (conn['width'].mean() + conn['height'].mean()) / 2
         return conn
 
+    def calculate_connectivity_vec(self, input_img):
+        components = connected_components_labeling(input_img)[1:]
+
+        def get_region(label):
+            where_t = torch.where(label == components)
+            y0 = where_t[0][0]  # First dimension is sorted
+            y1 = where_t[0][-1]
+            x0 = where_t[-1].min()
+            x1 = where_t[-1].max()
+            cx = (torch.round((x1 + x0) / 2)).int()
+            cy = (torch.round((y1 + y0) / 2)).int()
+            return torch.tensor([cx, cy, x0, y0, x1, y1])
+        labels = components.unique()[1:]  # First one is background
+        regions = torch.stack(tuple(map(get_region, labels)))
+        self.mean_crop_size = ((regions[:, 4] - regions[:, 2]).float().mean()
+                               + (regions[:, 5] - regions[:, 3]).float().mean()) / 2
+        return regions
+
     def calculate_mask(self, shape, connection_dataframe):
         displ_mask = np.zeros(shape, dtype=np.uint8)
         for idx, (x, y, bx, by, width, height, num_pixels) in connection_dataframe.iterrows():
             displacement = self.displacement(width, height)
-            c1 = int(x - displacement), int(y - displacement)
-            c2 = int(x + displacement), int(y + displacement)
+            c1 = round(x - displacement), round(y - displacement)
+            c2 = round(x + displacement), round(y + displacement)
             # cv.circle(imgc, (int(x), int(y)), 10, (255, 0, 0), 5)
             cv2.rectangle(displ_mask, c1, c2, 255, -1)
+        return displ_mask
+
+    def calculate_mask_vec(self, shape, regions):
+        displ_mask = torch.zeros(shape, dtype=torch.uint8)
+        for cx, cy, x0, y0, x1, y1 in regions:
+            displacement = self.displacement(x1 - x0 + 1, y1 - y0 + 1)
+            displ_mask[
+            max(int(cy - displacement), 0): min(int(cy + displacement), shape[0]),
+            max(int(cx - displacement), 0): min(int(cx + displacement), shape[1])
+            ] = 255
         return displ_mask
 
     def filter_lines(self, accumulator):
@@ -166,11 +195,11 @@ class CropRowDetector:
 
     def cluster_lines(self, acc: torch.Tensor, thetas_idcs):
         tol = 2
-        thetas_rhos = torch.stack(torch.where(acc > 0), dim=1)
+        rhos_thetas = torch.stack(torch.where(acc.T > 0), dim=1)
+        thetas_rhos = torch.index_select(rhos_thetas, 1, torch.LongTensor([1, 0]))
         thetas_rhos[:, 0] = thetas_idcs[thetas_rhos[:, 0]]
         cluster_indices = []
         prec_i = 0
-        # TODO RHOS ARE NOT ORDERED!!!!!!!!!!
         for i in range(1, thetas_rhos.shape[0]):
             if abs(thetas_rhos[i][1] - thetas_rhos[i - 1][1]) > tol:
                 cluster_indices.append(i - prec_i)
@@ -192,5 +221,5 @@ class CropRowDetector:
         filtered_acc, theta_index = self.filter_lines(accumulator)
         pos_acc, theta_index = self.positivize_rhos(filtered_acc, theta_index)
         clusters = self.cluster_lines(pos_acc, theta_index)
-        median_theta, median_rhos = self.get_median_theta_rhos(pos_acc, theta_index, clusters)
-        return median_theta, median_rhos
+        medians = self.get_medians(clusters)
+        return medians
