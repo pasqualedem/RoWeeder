@@ -264,6 +264,7 @@ class CropRowDetector:
         Returns:
 
         """
+        input_img = input_img.unsqueeze(0)
         width, height = input_img.shape[2:]
         crop_mask = self.detect_crop(input_img)
         connectivity_df = self.calculate_connectivity(crop_mask.squeeze(0).type(torch.uint8))

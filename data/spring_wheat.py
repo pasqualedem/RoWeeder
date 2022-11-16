@@ -90,9 +90,10 @@ class SpringWheatDataset(VisionDataset):
         self.len = len(self.files)
 
     def __getitem__(self, i) -> Any:
-        img = Image.open(
-            os.path.join(self.path, self.files[i])
-        )
+        img_path = os.path.join(self.path, self.files[i])
+        img = Image.open(img_path)
+        if self.return_name:
+            return self.transform(F.to_tensor(img)), img_path
         return self.transform(F.to_tensor(img))
 
     def __len__(self) -> int:

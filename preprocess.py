@@ -10,11 +10,14 @@ from PIL import Image
 from einops import rearrange
 from tqdm import tqdm
 
-# SIZE = 1024, 1024
+SIZE = 1024, 1024
+DATA_INPATH = "dataset/raw"
+DATA_OUTPATH = "dataset/processed"
+
 @click.command()
-@click.argument("inpath", type=click.STRING)
-@click.argument("outpath", type=click.STRING)
-@click.argument("size", type=click.Tuple([int, int]))
+@click.option("--inpath", default=DATA_INPATH, type=click.STRING)
+@click.option("--outpath", default=DATA_OUTPATH, type=click.STRING)
+@click.option("--size", default=SIZE, type=click.Tuple([int, int]))
 def preprocess(inpath: str, outpath: str, size: tuple):
     """
     :param inpath: Base folder of the dataset
