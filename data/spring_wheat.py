@@ -26,11 +26,11 @@ from data import stats
 logger = get_logger(__name__)
 
 
-class WeedMapDatasetInterface(DatasetInterface):
+class SpringWheatDatasetInterface(DatasetInterface):
     STATS = stats.STATS
 
     def __init__(self, dataset_params):
-        super(WeedMapDatasetInterface, self).__init__(dataset_params)
+        super(SpringWheatDatasetInterface, self).__init__(dataset_params)
         mean, std = self.get_mean_std()
 
         self.lib_dataset_params = {
