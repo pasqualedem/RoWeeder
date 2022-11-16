@@ -1,0 +1,21 @@
+schema: '2.0'
+stages:
+  download:
+    cmd: python data/download.py
+    outs:
+    - path: dataset/raw
+      md5: 09bc80d3f6a3c688beea99c860ce65fb.dir
+      size: 2973960164
+      nfiles: 869
+  preprocess:
+    cmd: python preprocess.py
+    deps:
+    - path: dataset/raw
+      md5: 09bc80d3f6a3c688beea99c860ce65fb.dir
+      size: 2973960164
+      nfiles: 869
+    outs:
+    - path: dataset/processed
+      md5: 11334aa1463003745124c4376923ddd2.dir
+      size: 1110554773
+      nfiles: 4050

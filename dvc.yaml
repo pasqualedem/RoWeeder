@@ -1,0 +1,11 @@
+stages:
+  download:
+    cmd: python data/download.py
+    outs:
+    - dataset/raw
+  preprocess:
+    cmd: python preprocess.py
+    deps:
+    - dataset/raw
+    outs:
+    - dataset/processed
