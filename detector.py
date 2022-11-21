@@ -254,8 +254,10 @@ class CropRowDetector:
         :param cluster_index: list of indices for each cluster start
         :return: medians from each cluster
         """
-        medians = torch.stack([theta_rhos[(i+j)//2] for i, j in previous_iterator(cluster_index, return_first=False)])
-        return medians
+        if theta_rhos.shape[0] > 0:
+            return torch.stack([theta_rhos[(i+j)//2] for i, j in previous_iterator(cluster_index, return_first=False)])
+        else:
+            return torch.tensor([])
 
     def predict(self, input_img, return_mean_crop_size=False):
         """
