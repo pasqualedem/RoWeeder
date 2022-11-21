@@ -9,3 +9,9 @@ stages:
     - dataset/raw
     outs:
     - dataset/processed
+  detect:
+    cmd: python detect.py
+    deps:
+    - dataset/processed
+    outs:
+    - dataset/crop_rows
