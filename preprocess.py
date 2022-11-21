@@ -26,7 +26,9 @@ def preprocess(inpath: str, outpath: str, size: tuple):
     """
     os.makedirs(outpath, exist_ok=True)
 
-    field_a, field_b = os.listdir(inpath)
+    fields = os.listdir(inpath)
+    fields.sort()
+    field_a, field_b = fields
     fa_folders = [os.path.join(inpath, field_a, sub) for sub in os.listdir(os.path.join(inpath, field_a))]
     fb_folders = [os.path.join(inpath, field_b, sub, "undistorted") for sub in os.listdir(os.path.join(inpath, field_b))]
 
