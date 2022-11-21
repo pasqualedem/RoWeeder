@@ -238,10 +238,11 @@ class CropRowDetector:
         thetas_rhos = torch.index_select(rhos_thetas, 1, torch.LongTensor([1, 0]))
         thetas_rhos[:, 0] = thetas_idcs[thetas_rhos[:, 0]]
         cluster_indices = [0]
-        for i in range(1, thetas_rhos.shape[0]):
-            if abs(thetas_rhos[i][1] - thetas_rhos[i - 1][1]) > tol:
-                cluster_indices.append(i)
-        cluster_indices.append(i+1)
+        if thetas_rhos.shape[0] > 0:
+            for i in range(1, thetas_rhos.shape[0]):
+                if abs(thetas_rhos[i][1] - thetas_rhos[i - 1][1]) > tol:
+                    cluster_indices.append(i)
+            cluster_indices.append(i+1)
         return thetas_rhos, cluster_indices
 
     def get_medians(self, theta_rhos: torch.Tensor, cluster_index):
