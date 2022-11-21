@@ -7,6 +7,7 @@ import pandas as pd
 from PIL import Image
 from ezdl.datasets import WeedMapDatasetInterface
 from torchvision.transforms import Compose, ToTensor, Normalize
+from tqdm import tqdm
 
 from detector import CropRowDetector
 from data.spring_wheat import SpringWheatDataset
@@ -54,7 +55,7 @@ def row_detection_springwheat(inpath, mask_outpath):
     transforms = Normalize(means, stds)
     dataset = SpringWheatDataset(root=inpath, return_path=True, transform=transforms)
 
-    for img, img_path in dataset:
+    for img, img_path in tqdm(dataset):
         width, height = img.shape[1:]
         fname = os.path.basename(img_path)
         fname, fext = os.path.splitext(fname)

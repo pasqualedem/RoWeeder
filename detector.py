@@ -243,7 +243,7 @@ class CropRowDetector:
                 if abs(thetas_rhos[i][1] - thetas_rhos[i - 1][1]) > tol:
                     cluster_indices.append(i)
         else:
-            i = 1
+            i = 0
         cluster_indices.append(i+1)
         return thetas_rhos, cluster_indices
 
@@ -254,6 +254,8 @@ class CropRowDetector:
         :param cluster_index: list of indices for each cluster start
         :return: medians from each cluster
         """
+        print(cluster_index)
+        print(theta_rhos.shape)
         medians = torch.stack([theta_rhos[(i+j)//2] for i, j in previous_iterator(cluster_index, return_first=False)])
         return medians
 
