@@ -31,8 +31,7 @@ def preprocess(inpath: str, outpath: str, size: tuple, uri: str = None):
     if inpath is None or inpath == '':
         inpath = Dataset.get(
             dataset_name="SpringWheat",
-            dataset_project="SSL",
-            dataset_version="raw"
+            dataset_project="SSL"
             ).get_local_copy()
     os.makedirs(outpath, exist_ok=True)
 
@@ -70,14 +69,19 @@ def generate_windows(img: PIL.Image.Image, size):
 
 
 def manage_clearml(uri, outpath):
+    parent = Dataset.get(
+        dataset_name="SpringWheat",
+        dataset_project="SSL"
+    )
     dataset = Dataset.create(
         dataset_name="SpringWheatProcessed",
         dataset_project="SSL",
         dataset_version="processed",
-        parent_datasets=['SpringWheat']
+        parent_datasets=[parent.id]
     )
     dataset.add_files(path=outpath)
     dataset.upload(output_url=uri)
+    dataset.finalize()
 
 
 if __name__ == '__main__':
