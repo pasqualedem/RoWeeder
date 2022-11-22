@@ -78,6 +78,7 @@ def manage_clearml(uri, outpath):
     )
     dataset.add_files(path=outpath)
     dataset.upload(output_url=uri)
+    dataset.finalize()
 
 
 if __name__ == '__main__':
