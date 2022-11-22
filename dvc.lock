@@ -19,3 +19,15 @@ stages:
       md5: 11334aa1463003745124c4376923ddd2.dir
       size: 1110554773
       nfiles: 4050
+  detect:
+    cmd: python detect.py
+    deps:
+    - path: dataset/processed
+      md5: 11334aa1463003745124c4376923ddd2.dir
+      size: 1110554773
+      nfiles: 4050
+    outs:
+    - path: dataset/crop_rows
+      md5: b9bb3b0ce5748fc40b81cc0be9d95c6f.dir
+      size: 20410355
+      nfiles: 8100
