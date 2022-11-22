@@ -60,8 +60,18 @@ class CropRowDetector:
                  step_rho=1,
                  threshold=10,
                  angle_error=3,
+                 clustering_tol=2,
                  displacement_function=max_displacement
                  ):
+        """
+
+        :param step_theta: Theta quantization in [0, 180] range
+        :param step_rho: Rho quantization in [0, diag] range
+        :param threshold: Hough threshold to be chosen as candidate line
+        :param angle_error: Theta error between the mode and other candidate lines
+        :param clustering_tol: Rho tolerance to select put a line in the same cluster as the previous one
+        :param displacement_function: Function used to choose the square whose center is the centroid of a crop
+        """
         self.step_theta = step_theta
         self.step_rho = step_rho
         self.threshold = threshold
@@ -70,7 +80,7 @@ class CropRowDetector:
         self.angle_error = angle_error
         means, stds = WeedMapDatasetInterface.get_mean_std(TRAIN_FOLDERS, CHANNELS, SUBSET)
         self.transform = Normalize(means, stds)
-
+        self.clustering_tol = clustering_tol
         self.mean_crop_size = None
         self.diag_len = None
 
@@ -233,14 +243,13 @@ class CropRowDetector:
         :param thetas_idcs: parallel theta tensor
         :return: cluster list indices: index where each cluster starts
         """
-        tol = 2
         rhos_thetas = torch.stack(torch.where(acc.T > 0), dim=1)
         thetas_rhos = torch.index_select(rhos_thetas, 1, torch.LongTensor([1, 0]))
         thetas_rhos[:, 0] = thetas_idcs[thetas_rhos[:, 0]]
         cluster_indices = [0]
         if thetas_rhos.shape[0] > 1:
             for i in range(1, thetas_rhos.shape[0]):
-                if abs(thetas_rhos[i][1] - thetas_rhos[i - 1][1]) > tol:
+                if abs(thetas_rhos[i][1] - thetas_rhos[i - 1][1]) > self.clustering_tol:
                     cluster_indices.append(i)
         else:
             i = 0

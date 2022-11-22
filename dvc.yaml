@@ -13,5 +13,7 @@ stages:
     cmd: python detect.py
     deps:
     - dataset/processed
+    params:
+      - clustering_tol
     outs:
     - dataset/crop_rows
