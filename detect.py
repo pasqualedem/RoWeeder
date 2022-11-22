@@ -1,4 +1,5 @@
 import os.path
+import shutil
 
 import click
 import numpy as np
@@ -45,14 +46,25 @@ def get_square_from_lines(img_array, theta, rho, displacement, width, height):
 @click.option("--inpath", default=DATA_ROOT, type=click.STRING)
 @click.option("--mask_outpath", default=CROP_ROWS_PATH, type=click.STRING)
 @click.option("--uri", default=None, type=click.STRING)
-def row_detection_springwheat(inpath, mask_outpath, uri):
+@click.option("--angle_error", default=None, type=click.INT)
+@click.option("--clustering_tol", default=None, type=click.INT)
+def row_detection_springwheat(inpath, mask_outpath, uri, angle_error, clustering_tol):
     """
     :param inpath: Base folder of the dataset
     :param mask_outpath: Folder where to save the masks
     :param uri: clearml uri for dataset upload
+    :param angle_error:
+    :param clustering_tol:
     """
-    crd = CropRowDetector()
+    if inpath is None or inpath == '':
+        inpath = Dataset.get(
+            dataset_name="SpringWheatProcessed",
+            dataset_project="SSL"
+            ).get_local_copy()
 
+    crd = CropRowDetector(angle_error=angle_error, clustering_tol=clustering_tol)
+
+    shutil.rmtree(mask_outpath, ignore_errors=True)
     os.makedirs(mask_outpath, exist_ok=True)
     mask_suffix = "_mask.png"
     csv_suffix = "_mask.csv"
@@ -74,10 +86,11 @@ def row_detection_springwheat(inpath, mask_outpath, uri):
         df.to_csv(os.path.join(mask_outpath, fname + csv_suffix))
         # Save the mask
         Image.fromarray(mask).save(os.path.join(mask_outpath, fname + mask_suffix))
-    manage_clearml(uri, mask_outpath)
+    version = f"angle_err:{angle_error}-clust_tol:{clustering_tol}"
+    manage_clearml(uri, mask_outpath, version)
 
 
-def manage_clearml(uri, outpath):
+def manage_clearml(uri, outpath, version=None):
     parent = Dataset.get(
         dataset_name="SpringWheatProcessed",
         dataset_project="SSL"
@@ -85,6 +98,7 @@ def manage_clearml(uri, outpath):
     dataset = Dataset.create(
         dataset_name="SpringWheatCropRows",
         dataset_project="SSL",
+        dataset_version=version,
         parent_datasets=[parent.id]
     )
     dataset.add_files(path=outpath)

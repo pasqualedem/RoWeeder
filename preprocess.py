@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import PIL.Image
 import numpy as np
@@ -33,6 +34,7 @@ def preprocess(inpath: str, outpath: str, size: tuple, uri: str = None):
             dataset_name="SpringWheat",
             dataset_project="SSL"
             ).get_local_copy()
+    shutil.rmtree(outpath, ignore_errors=True)
     os.makedirs(outpath, exist_ok=True)
 
     fields = os.listdir(inpath)
