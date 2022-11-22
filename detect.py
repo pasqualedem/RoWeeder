@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 import pandas as pd
 from PIL import Image
+from clearml import Dataset
 from ezdl.datasets import WeedMapDatasetInterface
 from torchvision.transforms import Compose, ToTensor, Normalize
 from tqdm import tqdm
@@ -68,6 +69,21 @@ def row_detection_springwheat(inpath, mask_outpath):
         df.to_csv(os.path.join(mask_outpath, fname + csv_suffix))
         # Save the mask
         Image.fromarray(mask).save(os.path.join(mask_outpath, fname + mask_suffix))
+
+
+def manage_clearml(uri, outpath):
+    parent = Dataset.get(
+        dataset_name="SpringWheatProcessed",
+        dataset_project="SSL"
+    )
+    dataset = Dataset.create(
+        dataset_name="SpringWheatCropRows",
+        dataset_project="SSL",
+        parent_datasets=[parent.id]
+    )
+    dataset.add_files(path=outpath)
+    dataset.upload(output_url=uri)
+    dataset.finalize()
 
 
 if __name__ == '__main__':
