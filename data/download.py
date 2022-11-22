@@ -5,6 +5,7 @@ from pathlib import Path
 import wget
 import shutil
 import click
+from clearml import Dataset
 
 
 DATA_ROOT = 'dataset/raw'
@@ -21,8 +22,9 @@ def progress_bar(current, total, width=80):
 
 
 @click.command()
+@click.option("--uri", default=None, type=click.STRING)
 @click.option("--outpath", default=DATA_ROOT, type=click.STRING)
-def download(outpath: str = DATA_ROOT):
+def download(uri: str = None, outpath: str = DATA_ROOT):
     os.makedirs(outpath, exist_ok=True)
     wget.download(FIELD_A_URL, FIELD_A_ZIP, progress_bar)
     wget.download(FIELD_B_URL, FIELD_B_ZIP, progress_bar)
@@ -32,6 +34,16 @@ def download(outpath: str = DATA_ROOT):
         zip_ref.extractall(outpath)
     os.remove(FIELD_A_ZIP)
     os.remove(FIELD_B_ZIP)
+    manage_clearml(uri, outpath)
+
+
+def manage_clearml(uri, outpath):
+    dataset = Dataset.create(
+        dataset_name="SpringWheat",
+        dataset_project="SSL"
+    )
+    dataset.add_files(path=outpath)
+    dataset.upload(output_url=uri)
 
 
 if __name__ == '__main__':
