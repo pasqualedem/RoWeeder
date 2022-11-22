@@ -71,9 +71,10 @@ def generate_windows(img: PIL.Image.Image, size):
 
 def manage_clearml(uri, outpath):
     dataset = Dataset.create(
-        dataset_name="SpringWheat",
+        dataset_name="SpringWheatProcessed",
         dataset_project="SSL",
-        dataset_version="processed"
+        dataset_version="processed",
+        parent_datasets=['SpringWheat']
     )
     dataset.add_files(path=outpath)
     dataset.upload(output_url=uri)
