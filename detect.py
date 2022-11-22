@@ -13,7 +13,6 @@ from tqdm import tqdm
 from detector import CropRowDetector
 from data.spring_wheat import SpringWheatDataset
 
-
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
 
@@ -45,7 +44,13 @@ def get_square_from_lines(img_array, theta, rho, displacement, width, height):
 @click.command()
 @click.option("--inpath", default=DATA_ROOT, type=click.STRING)
 @click.option("--mask_outpath", default=CROP_ROWS_PATH, type=click.STRING)
-def row_detection_springwheat(inpath, mask_outpath):
+@click.option("--uri", default=None, type=click.STRING)
+def row_detection_springwheat(inpath, mask_outpath, uri):
+    """
+    :param inpath: Base folder of the dataset
+    :param mask_outpath: Folder where to save the masks
+    :param uri: clearml uri for dataset upload
+    """
     crd = CropRowDetector()
 
     os.makedirs(mask_outpath, exist_ok=True)
@@ -69,6 +74,7 @@ def row_detection_springwheat(inpath, mask_outpath):
         df.to_csv(os.path.join(mask_outpath, fname + csv_suffix))
         # Save the mask
         Image.fromarray(mask).save(os.path.join(mask_outpath, fname + mask_suffix))
+    manage_clearml(uri, mask_outpath)
 
 
 def manage_clearml(uri, outpath):
