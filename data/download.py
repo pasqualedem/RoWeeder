@@ -40,7 +40,8 @@ def download(uri: str = None, outpath: str = DATA_ROOT):
 def manage_clearml(uri, outpath):
     dataset = Dataset.create(
         dataset_name="SpringWheat",
-        dataset_project="SSL"
+        dataset_project="SSL",
+        dataset_version="raw"
     )
     dataset.add_files(path=outpath)
     dataset.upload(output_url=uri)

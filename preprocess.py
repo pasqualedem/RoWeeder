@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import click
 
 from PIL import Image
+from clearml import Dataset
 from einops import rearrange
 from tqdm import tqdm
 
@@ -14,16 +15,25 @@ SIZE = 1024, 1024
 DATA_INPATH = "dataset/raw"
 DATA_OUTPATH = "dataset/processed"
 
+
 @click.command()
+@click.option("--uri", default=None, type=click.STRING)
 @click.option("--inpath", default=DATA_INPATH, type=click.STRING)
 @click.option("--outpath", default=DATA_OUTPATH, type=click.STRING)
 @click.option("--size", default=SIZE, type=click.Tuple([int, int]))
-def preprocess(inpath: str, outpath: str, size: tuple):
+def preprocess(inpath: str, outpath: str, size: tuple, uri: str = None):
     """
+    :param uri: clearml uri for dataset upload
     :param inpath: Base folder of the dataset
     :param outpath: Folder where to save the preprocessed dataset
     :param size: Size of the resulting images
     """
+    if inpath is None or inpath == '':
+        inpath = Dataset.get(
+            dataset_name="SpringWheat",
+            dataset_project="SSL",
+            dataset_version="raw"
+            ).get_local_copy()
     os.makedirs(outpath, exist_ok=True)
 
     fields = os.listdir(inpath)
@@ -35,6 +45,7 @@ def preprocess(inpath: str, outpath: str, size: tuple):
     images = [os.path.join(folder, img) for folder in fa_folders + fb_folders for img in os.listdir(folder)]
     for image in tqdm(images):
         generate_and_save_windows(image, outpath, size)
+    manage_clearml(uri, outpath)
 
 
 def generate_and_save_windows(image_path, outpath, size):
@@ -56,6 +67,16 @@ def generate_windows(img: PIL.Image.Image, size):
     windows = rearrange(windows, "b (c w h) n -> (b n) c w h", w=size[0], h=size[1], c=channels)
     windows = rearrange(windows, "b c w h -> b w h c")
     return windows
+
+
+def manage_clearml(uri, outpath):
+    dataset = Dataset.create(
+        dataset_name="SpringWheat",
+        dataset_project="SSL",
+        dataset_version="processed"
+    )
+    dataset.add_files(path=outpath)
+    dataset.upload(output_url=uri)
 
 
 if __name__ == '__main__':
