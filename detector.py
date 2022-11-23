@@ -283,7 +283,7 @@ class CropRowDetector:
         Returns:
 
         """
-        width, height = input_img.shape[2:]
+        width, height = input_img.shape[1:]
         crop_mask = self.detect_crop(input_img)
         connectivity_df = self.calculate_connectivity(crop_mask)
         enhanced_mask = self.calculate_mask((width, height), connectivity_df)
