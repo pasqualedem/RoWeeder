@@ -87,6 +87,15 @@ class CropRowDetector:
         self.mean_crop_size = None
         self.diag_len = None
 
+    def detect_crop(self, input_img):
+        input_img = input_img.cuda().unsqueeze(0)
+        tensor_img = self.transform(input_img)
+        seg = self.crop_detector(tensor_img)
+        seg_class = seg.argmax(1)
+        seg_class[seg_class == 2] = 255
+        seg_class[seg_class == 1] = 255
+        return seg_class.squeeze(0).type(torch.uint8)
+
     def hough_sequential(self, shape, connection_dataframe):
         width, height = shape
 
@@ -144,15 +153,6 @@ class CropRowDetector:
             displacements=displacements
         )
         return accumulator
-
-    def detect_crop(self, input_img):
-        input_img = input_img.cuda().unsqueeze(0)
-        tensor_img = self.transform(input_img)
-        seg = self.crop_detector(tensor_img)
-        seg_class = seg.argmax(1)
-        seg_class[seg_class == 2] = 255
-        seg_class[seg_class == 1] = 255
-        return seg_class.squeeze(0).type(torch.uint8)
 
     def calculate_connectivity_cv2(self, input_img):
         """
