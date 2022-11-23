@@ -69,6 +69,7 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
     shutil.rmtree(mask_outpath, ignore_errors=True)
     os.makedirs(mask_outpath, exist_ok=True)
     mask_suffix = "_mask.png"
+    crop_mask_suffix = "_cropmask.png"
     csv_suffix = "_mask.csv"
 
     means, stds = WeedMapDatasetInterface.get_mean_std(['000', '001', '002', '004'], ['R', 'G', 'B'], 'rededge')
@@ -79,7 +80,7 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
         width, height = img.shape[1:]
         fname = os.path.basename(img_path)
         fname, fext = os.path.splitext(fname)
-        lines, displacement = crd.predict(img, return_mean_crop_size=True)
+        lines, displacement, crop_mask = crd.predict(img, return_mean_crop_size=True, return_crop_mask=True)
         mask = np.zeros((width, height), dtype=np.uint8)
         for theta, rho in lines:
             mask = get_square_from_lines(mask, theta, rho, displacement, width, height)
@@ -88,6 +89,8 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
         df.to_csv(os.path.join(mask_outpath, fname + csv_suffix))
         # Save the mask
         Image.fromarray(mask).save(os.path.join(mask_outpath, fname + mask_suffix))
+        # Save the crop mask
+        Image.fromarray(crop_mask.cpu().numpy()).save(os.path.join(mask_outpath, fname + crop_mask_suffix))
     version = f"hough_t:{hough_threshold}-angle_err:{angle_error}-clust_tol:{clustering_tol}"
     manage_clearml(uri, mask_outpath, version)
 

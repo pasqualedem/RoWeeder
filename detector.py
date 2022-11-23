@@ -273,7 +273,7 @@ class CropRowDetector:
         else:
             return torch.tensor([])
 
-    def predict(self, input_img, return_mean_crop_size=False):
+    def predict(self, input_img, return_mean_crop_size=False, return_crop_mask=False):
         """
         Detect rows
         Args:
@@ -285,14 +285,19 @@ class CropRowDetector:
         """
         input_img = input_img.unsqueeze(0)
         width, height = input_img.shape[2:]
-        crop_mask = self.detect_crop(input_img)
-        connectivity_df = self.calculate_connectivity(crop_mask.squeeze(0).type(torch.uint8))
+        crop_mask = self.detect_crop(input_img).squeeze(0).type(torch.uint8)
+        connectivity_df = self.calculate_connectivity(crop_mask)
         enhanced_mask = self.calculate_mask((width, height), connectivity_df)
         accumulator = self.hough(enhanced_mask.shape, connectivity_df)
         filtered_acc, theta_index = self.filter_lines(accumulator)
         pos_acc, theta_index = self.positivize_rhos(filtered_acc, theta_index)
         thetas_rhos, clusters_index = self.cluster_lines(pos_acc, theta_index)
         medians = self.get_medians(thetas_rhos, clusters_index)
+        res = medians,
         if return_mean_crop_size:
-            return medians, self.mean_crop_size
-        return medians
+            res += (self.mean_crop_size,)
+        if return_crop_mask:
+            res += (crop_mask,)
+        if len(res) == 1:
+            return res[0]
+        return res
