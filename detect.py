@@ -19,6 +19,11 @@ CROP_ROWS_PATH = "dataset/crop_rows"
 CROP_MASKS_PATH = "dataset/crop_masks"
 
 
+@click.group()
+def main():
+    pass
+
+
 def get_line_boxes(theta, rho, is_deg, img_width, img_height):
     if is_deg:
         theta = np.deg2rad(theta)
@@ -43,7 +48,7 @@ def get_square_from_lines(img_array, theta, rho, displacement, width, height):
     return img_array
 
 
-@click.command("detect")
+@main.command("detect")
 @click.option("--inpath", default=DATA_ROOT, type=click.STRING)
 @click.option("--mask_outpath", default=CROP_ROWS_PATH, type=click.STRING)
 @click.option("--uri", default=None)
@@ -96,7 +101,7 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
     manage_clearml_crop_rows(uri, mask_outpath, version)
 
 
-@click.command("crop_mask")
+@main.command("crop_mask")
 @click.option("--inpath", default=DATA_ROOT, type=click.STRING)
 @click.option("--mask_outpath", default=CROP_MASKS_PATH, type=click.STRING)
 def crop_mask(inpath, mask_outpath, uri):
