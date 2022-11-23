@@ -55,6 +55,8 @@ class CropRowDetector:
     IDX_WIDTH = 6
     IDX_HEIGHT = 7
 
+    CROP_AS_TOL = "crop_as_tol"
+
     def __init__(self,
                  step_theta=1,
                  step_rho=1,
@@ -70,6 +72,7 @@ class CropRowDetector:
         :param threshold: Hough threshold to be chosen as candidate line
         :param angle_error: Theta error between the mode and other candidate lines
         :param clustering_tol: Rho tolerance to select put a line in the same cluster as the previous one
+            You can set 'crop_as_tol' to pick the medium crop size as tol
         :param displacement_function: Function used to choose the square whose center is the centroid of a crop
         """
         self.step_theta = step_theta
@@ -243,13 +246,15 @@ class CropRowDetector:
         :param thetas_idcs: parallel theta tensor
         :return: cluster list indices: index where each cluster starts
         """
+        clustering_tol = self.mean_crop_size if self.clustering_tol == self.CROP_AS_TOL else self.clustering_tol
+
         rhos_thetas = torch.stack(torch.where(acc.T > 0), dim=1)
         thetas_rhos = torch.index_select(rhos_thetas, 1, torch.LongTensor([1, 0]))
         thetas_rhos[:, 0] = thetas_idcs[thetas_rhos[:, 0]]
         cluster_indices = [0]
         if thetas_rhos.shape[0] > 1:
             for i in range(1, thetas_rhos.shape[0]):
-                if abs(thetas_rhos[i][1] - thetas_rhos[i - 1][1]) > self.clustering_tol:
+                if abs(thetas_rhos[i][1] - thetas_rhos[i - 1][1]) > clustering_tol:
                     cluster_indices.append(i)
         else:
             i = 0
