@@ -8,14 +8,15 @@ import pandas as pd
 from PIL import Image
 from clearml import Dataset
 from ezdl.datasets import WeedMapDatasetInterface
-from torchvision.transforms import Compose, ToTensor, Normalize
+from torchvision.transforms import Normalize
 from tqdm import tqdm
 
-from detector import CropRowDetector
+from detector import CropRowDetector, load_laweed
 from data.spring_wheat import SpringWheatDataset
 
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
+CROP_MASKS_PATH = "dataset/crop_masks"
 
 
 def get_line_boxes(theta, rho, is_deg, img_width, img_height):
@@ -42,7 +43,7 @@ def get_square_from_lines(img_array, theta, rho, displacement, width, height):
     return img_array
 
 
-@click.command()
+@click.command("detect")
 @click.option("--inpath", default=DATA_ROOT, type=click.STRING)
 @click.option("--mask_outpath", default=CROP_ROWS_PATH, type=click.STRING)
 @click.option("--uri", default=None)
@@ -92,16 +93,66 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
         # Save the crop mask
         Image.fromarray(crop_mask.cpu().numpy()).save(os.path.join(mask_outpath, fname + crop_mask_suffix))
     version = f"hough_t:{hough_threshold}-angle_err:{angle_error}-clust_tol:{clustering_tol}"
-    manage_clearml(uri, mask_outpath, version)
+    manage_clearml_crop_rows(uri, mask_outpath, version)
 
 
-def manage_clearml(uri, outpath, version=None):
+@click.command("crop_mask")
+@click.option("--inpath", default=DATA_ROOT, type=click.STRING)
+@click.option("--mask_outpath", default=CROP_MASKS_PATH, type=click.STRING)
+def crop_mask(inpath, mask_outpath, uri):
+    """
+    :param inpath: Base folder of the dataset
+    :param mask_outpath: Folder where to save the masks
+    :param uri: clearml uri for dataset upload
+    """
+    if inpath is None or inpath == '':
+        inpath = Dataset.get(
+            dataset_name="SpringWheatProcessed",
+            dataset_project="SSL"
+            ).get_local_copy()
+
+    crd = CropRowDetector()
+
+    shutil.rmtree(mask_outpath, ignore_errors=True)
+    os.makedirs(mask_outpath, exist_ok=True)
+    crop_mask_suffix = "_cropmask.png"
+
+    means, stds = WeedMapDatasetInterface.get_mean_std(['000', '001', '002', '004'], ['R', 'G', 'B'], 'rededge')
+    transforms = Normalize(means, stds)
+    dataset = SpringWheatDataset(root=inpath, return_path=True, transform=transforms)
+
+    for img, img_path in tqdm(dataset):
+        fname = os.path.basename(img_path)
+        fname, fext = os.path.splitext(fname)
+        crop_mask = crd.detect_crop(img)
+        # Save the crop mask
+        Image.fromarray(crop_mask.cpu().numpy()).save(os.path.join(mask_outpath, fname + crop_mask_suffix))
+    manage_clearml_crop_mask(uri, mask_outpath)
+
+
+def manage_clearml_crop_rows(uri, outpath, version=None):
+    parent = Dataset.get(
+        dataset_name="SpringWheatCropMasks",
+        dataset_project="SSL"
+    )
+    dataset = Dataset.create(
+        dataset_name="SpringWheatCropRows",
+        dataset_project="SSL",
+        dataset_version=version,
+        parent_datasets=[parent.id]
+    )
+    dataset.add_files(path=outpath)
+    dataset.upload(output_url=uri)
+    dataset.finalize()
+
+
+def manage_clearml_crop_mask(uri, outpath, version=None):
     parent = Dataset.get(
         dataset_name="SpringWheatProcessed",
         dataset_project="SSL"
     )
     dataset = Dataset.create(
-        dataset_name="SpringWheatCropRows",
+        dataset_name="SpringWheatCropMasks",
         dataset_project="SSL",
         dataset_version=version,
         parent_datasets=[parent.id]
