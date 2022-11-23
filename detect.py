@@ -48,7 +48,7 @@ def get_square_from_lines(img_array, theta, rho, displacement, width, height):
 @click.option("--uri", default=None, type=click.STRING)
 @click.option("--hough_threshold", default=None, type=click.INT)
 @click.option("--angle_error", default=None, type=click.INT)
-@click.option("--clustering_tol", default=None, type=click.INT)
+@click.option("--clustering_tol", default=None)
 def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_error, clustering_tol):
     """
     :param inpath: Base folder of the dataset
