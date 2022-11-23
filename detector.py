@@ -146,7 +146,7 @@ class CropRowDetector:
         return accumulator
 
     def detect_crop(self, input_img):
-        input_img = input_img.cuda()
+        input_img = input_img.cuda().unsqueeze(0)
         tensor_img = self.transform(input_img)
         seg = self.crop_detector(tensor_img)
         seg_class = seg.argmax(1)
@@ -283,9 +283,8 @@ class CropRowDetector:
         Returns:
 
         """
-        input_img = input_img.unsqueeze(0)
         width, height = input_img.shape[2:]
-        crop_mask = self.detect_crop(input_img).squeeze(0).type(torch.uint8)
+        crop_mask = self.detect_crop(input_img).type(torch.uint8)
         connectivity_df = self.calculate_connectivity(crop_mask)
         enhanced_mask = self.calculate_mask((width, height), connectivity_df)
         accumulator = self.hough(enhanced_mask.shape, connectivity_df)
