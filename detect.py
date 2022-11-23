@@ -168,4 +168,4 @@ def manage_clearml_crop_mask(uri, outpath, version=None):
 
 
 if __name__ == '__main__':
-    row_detection_springwheat()
+    main()
