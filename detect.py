@@ -130,7 +130,7 @@ def crop_mask(inpath, mask_outpath, uri):
     for img, img_path in tqdm(dataset):
         fname = os.path.basename(img_path)
         fname, fext = os.path.splitext(fname)
-        crop_mask = crd.detect_crop(img).cpu().numpy().astype(np.uint8)
+        crop_mask = crd.detect_crop(img).cpu().permute(1, 2, 0).numpy().astype(np.uint8)
         # Save the crop mask
         Image.fromarray(crop_mask).save(os.path.join(mask_outpath, fname + crop_mask_suffix))
     manage_clearml_crop_mask(uri, mask_outpath)
