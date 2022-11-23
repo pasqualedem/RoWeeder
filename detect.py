@@ -1,5 +1,6 @@
 import os.path
 import shutil
+from typing import Union
 
 import click
 import numpy as np
@@ -54,7 +55,7 @@ def get_square_from_lines(img_array, theta, rho, displacement, width, height):
 @click.option("--uri", default=None)
 @click.option("--hough_threshold", default=10)
 @click.option("--angle_error", default=3)
-@click.option("--clustering_tol", default=2)
+@click.option("--clustering_tol", default=2, type=Union[int, str])
 def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_error, clustering_tol):
     """
     :param inpath: Base folder of the dataset
