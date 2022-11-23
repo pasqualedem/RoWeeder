@@ -104,6 +104,7 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
 @main.command("crop_mask")
 @click.option("--inpath", default=DATA_ROOT, type=click.STRING)
 @click.option("--mask_outpath", default=CROP_MASKS_PATH, type=click.STRING)
+@click.option("--uri", default=None)
 def crop_mask(inpath, mask_outpath, uri):
     """
     :param inpath: Base folder of the dataset
