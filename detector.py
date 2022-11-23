@@ -152,7 +152,7 @@ class CropRowDetector:
         seg_class = seg.argmax(1)
         seg_class[seg_class == 2] = 255
         seg_class[seg_class == 1] = 255
-        return seg_class
+        return seg_class.squeeze(0).type(torch.uint8)
 
     def calculate_connectivity_cv2(self, input_img):
         """
@@ -284,7 +284,7 @@ class CropRowDetector:
 
         """
         width, height = input_img.shape[2:]
-        crop_mask = self.detect_crop(input_img).type(torch.uint8)
+        crop_mask = self.detect_crop(input_img)
         connectivity_df = self.calculate_connectivity(crop_mask)
         enhanced_mask = self.calculate_mask((width, height), connectivity_df)
         accumulator = self.hough(enhanced_mask.shape, connectivity_df)
