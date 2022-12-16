@@ -303,7 +303,7 @@ class CropRowDetector:
 
         """
         width, height = mask.shape[1:]
-        crop_mask = mask
+        crop_mask = mask.cuda()
         connectivity_df = self.calculate_connectivity(crop_mask)
         enhanced_mask = self.calculate_mask((width, height), connectivity_df)
         accumulator = self.hough(enhanced_mask.shape, connectivity_df)
