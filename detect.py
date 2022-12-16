@@ -95,7 +95,7 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
         df.to_csv(os.path.join(mask_outpath, fname + csv_suffix))
         # Save the mask
         Image.fromarray(mask).save(os.path.join(mask_outpath, fname + mask_suffix))
-    version = f"hough_t:{hough_threshold}-angle_err:{angle_error}-clust_tol:{clustering_tol}"
+    version = f"hough_t={hough_threshold}_angle_err={angle_error}_clust_tol={clustering_tol}"
     manage_clearml_crop_rows(uri, mask_outpath, version)
 
 
