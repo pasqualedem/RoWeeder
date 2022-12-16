@@ -69,6 +69,8 @@ class SpringWheatDataset(VisionDataset):
     CLASS_LABELS = {0: "background", 1: "crop", 2: 'weed'}
     classes = ['background', 'crop', 'weed']
 
+    IMG_EXTENSION = '.JPG'
+
     def __init__(self,
                  root: str,
                  transform: callable,
@@ -84,7 +86,7 @@ class SpringWheatDataset(VisionDataset):
         super().__init__(root=root)
 
         self.path = root
-        self.transform = transform
+        self.transform = transform if transform is not None else lambda x: x
         self.return_name = return_path
         self.files = os.listdir(self.path)
         self.len = len(self.files)
@@ -103,3 +105,27 @@ class SpringWheatDataset(VisionDataset):
         :return: The number of batches.
         """
         return self.len
+
+
+class SpringWheatMaskedDataset(SpringWheatDataset):
+    MASK_SUFFIX = '_cropmask.png'
+    CSV_SUFFIX = '_mask.csv'
+
+    def __init__(self,
+                 root: str,
+                 transform: callable,
+                 return_path: bool = False,
+                 return_img: bool = True
+                 ):
+        super().__init__(root, transform, return_path)
+        self.files = ([img.removesuffix(self.MASK_SUFFIX) for img in self.files if img.endswith(self.MASK_SUFFIX)])
+        self.return_img = return_img
+
+    def __getitem__(self, i) -> Any:
+        img_path = os.path.join(self.path, self.files[i] + self.IMG_EXTENSION)
+        mask_path = img_path.replace(self.IMG_EXTENSION, self.MASK_SUFFIX)
+        mask = F.pil_to_tensor(Image.open(mask_path))
+        if self.return_img:
+            img = self.transform(F.to_tensor(Image.open(img_path)))
+            return (img, mask, img_path) if self.return_name else (img, mask)
+        return (mask, img_path) if self.return_name else mask

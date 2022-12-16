@@ -8,12 +8,11 @@ import cv2
 import pandas as pd
 from PIL import Image
 from clearml import Dataset
-from ezdl.datasets import WeedMapDatasetInterface
 from torchvision.transforms import Normalize
 from tqdm import tqdm
 
-from detector import CropRowDetector, load_laweed
-from data.spring_wheat import SpringWheatDataset
+from detector import CropRowDetector
+from data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
 
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
@@ -71,16 +70,17 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
             dataset_project="SSL"
             ).get_local_copy()
 
-    crd = CropRowDetector(threshold=hough_threshold, angle_error=angle_error, clustering_tol=clustering_tol)
+    crd = CropRowDetector(crop_detector=None,
+                          threshold=hough_threshold,
+                          angle_error=angle_error,
+                          clustering_tol=clustering_tol)
 
     shutil.rmtree(mask_outpath, ignore_errors=True)
     os.makedirs(mask_outpath, exist_ok=True)
     mask_suffix = "_mask.png"
     csv_suffix = "_mask.csv"
 
-    means, stds = WeedMapDatasetInterface.get_mean_std(['000', '001', '002', '004'], ['R', 'G', 'B'], 'rededge')
-    transforms = Normalize(means, stds)
-    dataset = SpringWheatDataset(root=inpath, return_path=True, transform=transforms)
+    dataset = SpringWheatMaskedDataset(root=inpath, return_path=True, return_img=False, transform=None)
 
     for img, img_path in tqdm(dataset):
         width, height = img.shape[1:]
@@ -121,9 +121,7 @@ def crop_mask(inpath, mask_outpath, uri):
     os.makedirs(mask_outpath, exist_ok=True)
     crop_mask_suffix = "_cropmask.png"
 
-    means, stds = WeedMapDatasetInterface.get_mean_std(['000', '001', '002', '004'], ['R', 'G', 'B'], 'rededge')
-    transforms = Normalize(means, stds)
-    dataset = SpringWheatDataset(root=inpath, return_path=True, transform=transforms)
+    dataset = SpringWheatDataset(root=inpath, return_path=True, transform=None)
 
     for img, img_path in tqdm(dataset):
         fname = os.path.basename(img_path)

@@ -34,15 +34,26 @@ def mean_displacement(width, height):
     return int((width + height) / 4)
 
 
-def load_laweed():
-    pth = torch.load(MODEL_PATH)
-    model = Laweed({'output_channels': 3, 'num_classes': 3, 'backbone': 'MiT-B0', 'backbone_pretrained': True})
-    weights = {k[7:]: v for k, v in pth['net'].items()}
-    model.load_state_dict(weights)
-    model.eval()
-    model.cuda()
+class LaweedVegetationDetector:
+    def __init__(self):
+        pth = torch.load(MODEL_PATH)
+        model = Laweed({'output_channels': 3, 'num_classes': 3, 'backbone': 'MiT-B0', 'backbone_pretrained': True})
+        weights = {k[7:]: v for k, v in pth['net'].items()}
+        model.load_state_dict(weights)
+        means, stds = WeedMapDatasetInterface.get_mean_std(TRAIN_FOLDERS, CHANNELS, SUBSET)
+        self.transform = Normalize(means, stds)
+        model.eval()
+        model.cuda()
 
-    return model
+        self.model = model
+
+    def __call__(self, img):
+        img = self.transform(img)
+        seg = self.model(img.unsqueeze(0).cuda())
+        seg_class = seg.argmax(1)
+        seg_class[seg_class == 2] = 255
+        seg_class[seg_class == 1] = 255
+        return seg_class
 
 
 class CropRowDetector:
@@ -63,7 +74,8 @@ class CropRowDetector:
                  threshold=10,
                  angle_error=3,
                  clustering_tol=2,
-                 displacement_function=max_displacement
+                 displacement_function=max_displacement,
+                 crop_detector=None,
                  ):
         """
 
@@ -78,23 +90,17 @@ class CropRowDetector:
         self.step_theta = step_theta
         self.step_rho = step_rho
         self.threshold = threshold
-        self.crop_detector = load_laweed()
+        self.crop_detector = LaweedVegetationDetector() if crop_detector is None else crop_detector
         self.displacement = displacement_function
         self.angle_error = angle_error
-        means, stds = WeedMapDatasetInterface.get_mean_std(TRAIN_FOLDERS, CHANNELS, SUBSET)
-        self.transform = Normalize(means, stds)
         self.clustering_tol = clustering_tol
         self.mean_crop_size = None
         self.diag_len = None
 
     def detect_crop(self, input_img):
         input_img = input_img.cuda().unsqueeze(0)
-        tensor_img = self.transform(input_img)
-        seg = self.crop_detector(tensor_img)
-        seg_class = seg.argmax(1)
-        seg_class[seg_class == 2] = 255
-        seg_class[seg_class == 1] = 255
-        return seg_class.squeeze(0).type(torch.uint8)
+        seg = self.crop_detector(input_img)
+        return seg.squeeze(0).type(torch.uint8)
 
     def hough_sequential(self, shape, connection_dataframe):
         width, height = shape
@@ -124,6 +130,7 @@ class CropRowDetector:
         :param connectivity_tensor: (N, 8) tensor
         :return: (n_thetas, n_rhos) frequency accumulator
         """
+
         width, height = shape
 
         d = np.sqrt(np.square(height) + np.square(width))
@@ -283,8 +290,21 @@ class CropRowDetector:
         Returns:
 
         """
-        width, height = input_img.shape[1:]
         crop_mask = self.detect_crop(input_img)
+        return self.predict_from_mask(crop_mask, return_mean_crop_size, return_crop_mask)
+
+    def predict_from_mask(self, mask, return_mean_crop_size=False, return_crop_mask=False):
+        """
+        Detect rows
+        Args:
+            input_img: Input tensor
+            return_mean_crop_size: tells if return the mean crop size
+
+        Returns:
+
+        """
+        width, height = mask.shape[1:]
+        crop_mask = mask
         connectivity_df = self.calculate_connectivity(crop_mask)
         enhanced_mask = self.calculate_mask((width, height), connectivity_df)
         accumulator = self.hough(enhanced_mask.shape, connectivity_df)
@@ -297,6 +317,4 @@ class CropRowDetector:
             res += (self.mean_crop_size,)
         if return_crop_mask:
             res += (crop_mask,)
-        if len(res) == 1:
-            return res[0]
-        return res
+        return res[0] if len(res) == 1 else res
