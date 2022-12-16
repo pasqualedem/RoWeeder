@@ -98,7 +98,6 @@ class CropRowDetector:
         self.diag_len = None
 
     def detect_crop(self, input_img):
-        input_img = input_img.cuda().unsqueeze(0)
         seg = self.crop_detector(input_img)
         return seg.squeeze(0).type(torch.uint8)
 
