@@ -64,9 +64,9 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
     :param angle_error:
     :param clustering_tol:
     """
-    if inpath is None or inpath == '':
+    if inpath is None or inpath == '' or os.path.exists(inpath) is False:
         inpath = Dataset.get(
-            dataset_name="SpringWheatProcessed",
+            dataset_name="SpringWheatCropMasks",
             dataset_project="SSL"
             ).get_local_copy()
 
@@ -86,7 +86,7 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
         width, height = img.shape[1:]
         fname = os.path.basename(img_path)
         fname, fext = os.path.splitext(fname)
-        lines, displacement = crd.predict(img, return_mean_crop_size=True)
+        lines, displacement = crd.predict_from_mask(img, return_mean_crop_size=True)
         mask = np.zeros((width, height), dtype=np.uint8)
         for theta, rho in lines:
             mask = get_square_from_lines(mask, theta, rho, displacement, width, height)
@@ -95,7 +95,7 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
         df.to_csv(os.path.join(mask_outpath, fname + csv_suffix))
         # Save the mask
         Image.fromarray(mask).save(os.path.join(mask_outpath, fname + mask_suffix))
-    version = f"hough_t={hough_threshold}_angle_err={angle_error}_clust_tol={clustering_tol}"
+    version = f"hough_t={hough_threshold}||angle_err={angle_error}||clust_tol={clustering_tol}"
     manage_clearml_crop_rows(uri, mask_outpath, version)
 
 
