@@ -183,6 +183,11 @@ class CropRowDetector:
         :param input_img: Binary Tensor located on GPU
         :return: connectivity tensor (N, 6) where each row is (centroid x, centroid y, x0, y0, x1, y1)
         """
+        if len(input_img.shape) == 3:
+            if input_img.shape[0] == 1:
+                input_img = input_img.squeeze(0)
+            else:
+                raise ValueError("Must be 2D tensor")
         components = connected_components_labeling(input_img)[1:]
 
         def get_region(label):

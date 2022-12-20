@@ -22,6 +22,7 @@ from super_gradients.common.abstractions.abstract_logger import get_logger
 from ezdl.data import DatasetInterface
 
 from data import stats
+from utils import remove_suffix
 
 logger = get_logger(__name__)
 
@@ -89,7 +90,6 @@ class SpringWheatDataset(VisionDataset):
         self.transform = transform if transform is not None else lambda x: x
         self.return_name = return_path
         self.files = os.listdir(self.path)
-        self.len = len(self.files)
 
     def __getitem__(self, i) -> Any:
         img_path = os.path.join(self.path, self.files[i])
@@ -104,7 +104,7 @@ class SpringWheatDataset(VisionDataset):
 
         :return: The number of batches.
         """
-        return self.len
+        return len(self.files)
 
 
 class SpringWheatMaskedDataset(SpringWheatDataset):
@@ -118,7 +118,8 @@ class SpringWheatMaskedDataset(SpringWheatDataset):
                  return_img: bool = True
                  ):
         super().__init__(root, transform, return_path)
-        self.files = ([img.removesuffix(self.MASK_SUFFIX) for img in self.files if img.endswith(self.MASK_SUFFIX)])
+        self.files = list(set([remove_suffix(img, self.MASK_SUFFIX)
+                               for img in self.files if img.endswith(self.MASK_SUFFIX)]))
         self.return_img = return_img
 
     def __getitem__(self, i) -> Any:

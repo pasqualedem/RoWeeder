@@ -1,6 +1,5 @@
 import os.path
 import shutil
-from typing import Union
 
 import click
 import numpy as np
@@ -8,15 +7,15 @@ import cv2
 import pandas as pd
 from PIL import Image
 from clearml import Dataset
-from torchvision.transforms import Normalize
 from tqdm import tqdm
 
 from detector import CropRowDetector
 from data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
+from ezdl.utils.grid import make_grid
+from ezdl.utils.utilities import load_yaml
 
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
-CROP_MASKS_PATH = "dataset/crop_masks"
 
 
 @click.group()
@@ -54,23 +53,50 @@ def get_square_from_lines(img_array, theta, rho, displacement, width, height):
 @click.option("--uri", default=None)
 @click.option("--hough_threshold", default=10)
 @click.option("--angle_error", default=3)
-@click.option("--clustering_tol")
-def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_error, clustering_tol=2):
+@click.option("--clustering_tol", type=click.STRING, default="crop_as_tol")
+@click.option("--input_yaml", type=click.STRING)
+def cli_row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_error, clustering_tol, input_yaml):
     """
-    :param inpath: Base folder of the dataset
-    :param mask_outpath: Folder where to save the masks
-    :param uri: clearml uri for dataset upload
-    :param hough_threshold:
-    :param angle_error:
-    :param clustering_tol:
+
+    Args:
+        input_yaml:
+        inpath: Base folder of the dataset
+        mask_outpath: Folder where to save the masks
+        uri: clearml uri for dataset upload
+        hough_threshold:
+        angle_error:
+        clustering_tol:
     """
+    clustering_tol = int(clustering_tol) if clustering_tol.isnumeric() else clustering_tol
     if inpath is None or inpath == '' or os.path.exists(inpath) is False:
         inpath = Dataset.get(
             dataset_name="SpringWheatCropMasks",
             dataset_project="SSL"
             ).get_local_copy()
+    if input_yaml is not None:
+        input_dict = load_yaml(input_yaml)
+        input_dict = {**input_dict, **{"uri": [uri], "inpath": [inpath], "mask_outpath": [mask_outpath]}}
+        runs = make_grid(input_dict)
+    else:
+        runs = [{
+            "inpath": inpath,
+            "hough_threshold":hough_threshold,
+            "mask_outpath": mask_outpath,
+            "uri": uri,
+            "angle_error": angle_error,
+            "clustering_tol": clustering_tol
+        }]
+    print(runs)
+    print(f"\n"
+          f"Number of runs: {len(runs)}")
+    for i, run in enumerate(runs):
+        print(f"Run number: {i} on {len(runs)}")
+        row_detection_springwheat(**run)
 
-    crd = CropRowDetector(crop_detector=None,
+
+def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_error, clustering_tol):
+
+    crd = CropRowDetector(crop_detector="None",
                           threshold=hough_threshold,
                           angle_error=angle_error,
                           clustering_tol=clustering_tol)
@@ -101,7 +127,7 @@ def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_
 
 @main.command("crop_mask")
 @click.option("--inpath", default=DATA_ROOT, type=click.STRING)
-@click.option("--mask_outpath", default=CROP_MASKS_PATH, type=click.STRING)
+@click.option("--mask_outpath", default=DATA_ROOT, type=click.STRING)
 @click.option("--uri", default=None)
 def crop_mask(inpath, mask_outpath, uri):
     """
