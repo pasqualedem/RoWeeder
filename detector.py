@@ -1,3 +1,5 @@
+import contextlib
+
 import cv2
 import numpy as np
 import pandas as pd
@@ -8,7 +10,7 @@ from ezdl.models.lawin import Laweed
 from torchvision.transforms import Normalize, ToTensor, Compose
 from torch.nn import functional as F
 from histogramdd import histogramdd
-from utils import previous_iterator
+from utils import previous_iterator, tensor_intersection, remove_element_from_tensor, merge_bboxes
 
 MODEL_PATH = "Laweed-1v1r4nzz_latest.pth"
 TRAIN_FOLDERS = ['000', '001', '002', '004']
@@ -18,7 +20,7 @@ SUBSET = 'rededge'
 
 def get_circular_interval(inf, sup, interval_max):
     if sup < inf:
-        return (0, sup),  (inf, interval_max)
+        return (0, sup), (inf, interval_max)
     if sup > interval_max:
         return (0, sup - interval_max), (inf, interval_max)
     if inf < 0:
@@ -199,6 +201,7 @@ class CropRowDetector:
             cx = (torch.round((x1 + x0) / 2)).int()
             cy = (torch.round((y1 + y0) / 2)).int()
             return torch.tensor([cx, cy, x0, y0, x1, y1, x1 - x0 + 1, y1 - y0 + 1])
+
         labels = components.unique()[1:]  # First one is background
         regions = torch.stack(tuple(map(get_region, labels)))
         self.mean_crop_size = ((regions[:, 4] - regions[:, 2]).float().mean()
@@ -222,9 +225,23 @@ class CropRowDetector:
             ] = 255
         return displ_mask
 
+    def increase_recall(self, regions):
+        def get_neighbours(cx, cy, regions, threshold):
+            return \
+                    (regions[:, self.IDX_CX] - cx).abs() < threshold & \
+                    (regions[:, self.IDX_CY] - cy).abs() < threshold
+
+        with contextlib.suppress(IndexError):
+            for i in range(regions.shape[0]):
+                cx, cy, x0, y0, x1, y1, width, height = regions[i]
+                neighbours = get_neighbours(cx, cy, regions, self.displacement(width, height) * 4)
+                if len(neighbours) > 0:
+                    new_bbox = merge_bboxes(regions[neighbours][:, self.IDX_X0:self.IDX_Y1 + 1])
+                    for j in range(len(neighbours)):
+
     def filter_lines(self, accumulator):
         """
-        Filter lines in the accumulator firtsly with a threhold,
+        Filter lines in the accumulator firstly with a threshold,
         then deleting all the lines with a theta different from the mode with a certain error
         :param accumulator: (n_theta, n_rho) frequency tensor
         :return: sliced accumulator on the rows, theta parallel tensor
@@ -269,7 +286,7 @@ class CropRowDetector:
                     cluster_indices.append(i)
         else:
             i = 0
-        cluster_indices.append(i+1)
+        cluster_indices.append(i + 1)
         return thetas_rhos, cluster_indices
 
     def get_medians(self, theta_rhos: torch.Tensor, cluster_index):
@@ -280,7 +297,8 @@ class CropRowDetector:
         :return: medians from each cluster
         """
         if theta_rhos.shape[0] > 0:
-            return torch.stack([theta_rhos[(i+j)//2] for i, j in previous_iterator(cluster_index, return_first=False)])
+            return torch.stack(
+                [theta_rhos[(i + j) // 2] for i, j in previous_iterator(cluster_index, return_first=False)])
         else:
             return torch.tensor([])
 
