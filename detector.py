@@ -231,13 +231,16 @@ class CropRowDetector:
                     (regions[:, self.IDX_CX] - cx).abs() < threshold & \
                     (regions[:, self.IDX_CY] - cy).abs() < threshold
 
-        with contextlib.suppress(IndexError):
-            for i in range(regions.shape[0]):
-                cx, cy, x0, y0, x1, y1, width, height = regions[i]
-                neighbours = get_neighbours(cx, cy, regions, self.displacement(width, height) * 4)
-                if len(neighbours) > 0:
-                    new_bbox = merge_bboxes(regions[neighbours][:, self.IDX_X0:self.IDX_Y1 + 1])
-                    for j in range(len(neighbours)):
+        presence = torch.ones(regions.shape[0], dtype=torch.bool)
+        for i in range(regions.shape[0]):
+            cx, cy, x0, y0, x1, y1, width, height = regions[i]
+            neighbours = get_neighbours(cx, cy, regions[presence], self.displacement(width, height) * 4)
+            if len(neighbours) > 0:
+                neighbours = presence.argwhere()[neighbours]  # Get back indices to original tensor
+                new_bbox = merge_bboxes(regions[neighbours])
+                regions[neighbours[-1]] = new_bbox
+                presence[neighbours[:-1]] = False
+        return regions[presence].contiguous()
 
     def filter_lines(self, accumulator):
         """
