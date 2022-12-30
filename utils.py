@@ -40,8 +40,12 @@ def merge_bboxes(bboxes):
     """
     Merge bboxes into a single bbox.
     """
-    x1 = bboxes[:, 0].min()
-    y1 = bboxes[:, 1].min()
-    x2 = bboxes[:, 2].max()
-    y2 = bboxes[:, 3].max()
-    return torch.tensor([x1, y1, x2, y2])
+    x1 = bboxes[:, 2].min()
+    y1 = bboxes[:, 3].min()
+    x2 = bboxes[:, 4].max()
+    y2 = bboxes[:, 5].max()
+    cx = (x1 + x2) / 2
+    cy = (y1 + y2) / 2
+    width = x2 - x1
+    height = y2 - y1
+    return torch.tensor([cx, cy, x1, y1, x2, y2, width, height])
