@@ -5,7 +5,9 @@ from io import BytesIO
 import streamlit as st
 from PIL import Image
 
-from clearml import Dataset
+from clearml import Dataset, StorageManager, Task
+from clearml.backend_config.config import Config
+from urllib.parse import urlparse, urlunparse
 
 import os
 import numpy as np
@@ -17,9 +19,44 @@ from utils import remove_suffix
 def get_datasets():
     name = "SpringWheatCropRows"
 
-    versions = map(lambda x: x['id'], Dataset.list_datasets(partial_name=name))
-    datasets = list(map(lambda id: Dataset.get(dataset_id=id), versions))
+    versions = list(map(lambda x: x['id'], Dataset.list_datasets(partial_name=name)))
+    try:
+        print("Getting datasets information")
+        datasets = list(map(lambda id: Dataset.get(dataset_id=id), versions))
+    except ValueError:
+        import warnings
+        warnings.warn("Url not working, trying for file server")
+        config = Config()
+        config.reload()
+        _, files_server, _, _, _, _ = urlparse(config.get("api").get("files_server"))
+        print(f"File server: {files_server}")
+
+        def get_dataset_copy(dataset_id):
+            task = Task.get_task(task_id=dataset_id)
+            scheme, _, path, params, query, fragment = urlparse(task.artifacts["state"].url)
+            url = urlunparse((scheme, files_server, path, params, query, fragment))
+            print(f"url: {url}")
+            force_download = task.status not in (
+                "stopped",
+                "published",
+                "closed",
+                "completed",
+            )
+            local_state_file = StorageManager.get_local_copy(
+                remote_url=url,
+                cache_context="datasets",
+                extract_archive=False,
+                name=task.id,
+                force_download=force_download,
+            )
+            instance = Dataset._deserialize(local_state_file, task)
+            return instance
+
+        datasets = list(map(lambda did: get_dataset_copy(did), versions))
+
+    print("Getting local copy of datasets...", end=" ")
     datasets_dict = list(map(lambda x: {'dataset': x, 'path': x.get_local_copy()}, datasets))
+    print("Done!")
 
     files = [x.split('.')[0] for x in os.listdir(datasets_dict[0]['path']) if x.endswith('.JPG')]
     images = list(map(lambda x: x + '.JPG', files))
