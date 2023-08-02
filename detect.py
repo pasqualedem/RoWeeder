@@ -9,10 +9,12 @@ from PIL import Image
 from clearml import Dataset
 from tqdm import tqdm
 
-from detector import CropRowDetector
+from detector import ModifiedHoughCropRowDetector
 from data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
 from ezdl.utils.grid import make_grid
 from ezdl.utils.utilities import load_yaml
+
+from labeling import label as label_fn
 
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
@@ -96,7 +98,7 @@ def cli_row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, an
 
 def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_error, clustering_tol):
 
-    crd = CropRowDetector(crop_detector="None",
+    crd = ModifiedHoughCropRowDetector(crop_detector="None",
                           threshold=hough_threshold,
                           angle_error=angle_error,
                           clustering_tol=clustering_tol)
@@ -141,7 +143,7 @@ def crop_mask(inpath, mask_outpath, uri):
             dataset_project="SSL"
             ).get_local_copy()
 
-    crd = CropRowDetector()
+    crd = ModifiedHoughCropRowDetector()
 
     shutil.rmtree(mask_outpath, ignore_errors=True)
     os.makedirs(mask_outpath, exist_ok=True)
@@ -188,6 +190,19 @@ def manage_clearml_crop_mask(uri, outpath, version=None):
     dataset.add_files(path=outpath)
     dataset.upload(output_url=uri)
     dataset.finalize()
+
+
+@main.command("label")
+@click.option("--root", default=DATA_ROOT, type=click.STRING)
+@click.option("--threshold", default=150, type=click.INT)
+@click.option("--checkpoint", default=None)
+def label(root, checkpoint, threshold):
+    """
+    :param root: Base folder of the dataset
+    :param threshold: Threshold for the SplitLawinVegetationDetector
+    """
+    label_fn(root=root, checkpoint=checkpoint, threshold=threshold)
+
 
 
 if __name__ == '__main__':

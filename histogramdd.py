@@ -164,10 +164,13 @@ def histogramdd(thetas, rhos, rho_values, displacements=None, range=None):
     # This raises an error if the array is too large.
     xy = Ncount @ torch.tensor([nbin[1], 1])
 
-    displacements_adapted = displacements.repeat(len(thetas)).reshape(len(thetas), len(displacements)).T.flatten()
-    # Add the displacements
-    xy_enlarged = torch.concat([torch.arange(-dis, dis + 1) + xyindex
-                                for dis, xyindex in zip(displacements_adapted, xy)])
+    if displacements is not None:
+        displacements_adapted = displacements.repeat(len(thetas)).reshape(len(thetas), len(displacements)).T.flatten()
+        # Add the displacements
+        xy_enlarged = torch.concat([torch.arange(-dis, dis + 1) + xyindex
+                                    for dis, xyindex in zip(displacements_adapted, xy)])
+    else:
+        xy_enlarged = xy
 
     # Compute the number of repetitions in xy and assign it to the
     # flattened histmat.

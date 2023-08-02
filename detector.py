@@ -1,20 +1,21 @@
-import contextlib
-
 import cv2
 import numpy as np
 import pandas as pd
 import torch
 from cc_torch import connected_components_labeling
 from ezdl.datasets import WeedMapDatasetInterface
-from ezdl.models.lawin import Laweed
+from ezdl.models.lawin import Laweed, SplitLawin
 from torchvision.transforms import Normalize, ToTensor, Compose
 from torch.nn import functional as F
 from histogramdd import histogramdd
 from utils import previous_iterator, tensor_intersection, remove_element_from_tensor, merge_bboxes
+from scipy.stats import kstest
 
-MODEL_PATH = "Laweed-1v1r4nzz_latest.pth"
+LAWEED_PATH = "checkpoints/Laweed-1v1r4nzz_latest.pth"
+LAWIN_PATH = "checkpoints/SplitLawin_B1_RedEdge_RGBNIRRE.pth"
 TRAIN_FOLDERS = ['000', '001', '002', '004']
-CHANNELS = ['R', 'G', 'B']
+LAWEED_CHANNELS = ['R', 'G', 'B']
+LAWIN_CHANNELS = ['R', 'G', 'B', 'NIR', 'RE']
 SUBSET = 'rededge'
 
 
@@ -36,13 +37,27 @@ def mean_displacement(width, height):
     return int((width + height) / 4)
 
 
+def get_medians(theta_rhos: torch.Tensor, cluster_index):
+    """
+    Get the median lines from each cluster
+    :param theta_rhos: tensor for thetas and rhos (N, 2)
+    :param cluster_index: list of indices for each cluster start
+    :return: medians from each cluster
+    """
+    if theta_rhos.shape[0] > 0:
+        return torch.stack(
+            [theta_rhos[(i + j) // 2] for i, j in previous_iterator(cluster_index, return_first=False)])
+    else:
+        return torch.tensor([])
+
+
 class LaweedVegetationDetector:
     def __init__(self):
-        pth = torch.load(MODEL_PATH)
+        pth = torch.load(LAWEED_PATH)
         model = Laweed({'output_channels': 3, 'num_classes': 3, 'backbone': 'MiT-B0', 'backbone_pretrained': True})
         weights = {k[7:]: v for k, v in pth['net'].items()}
         model.load_state_dict(weights)
-        means, stds = WeedMapDatasetInterface.get_mean_std(TRAIN_FOLDERS, CHANNELS, SUBSET)
+        means, stds = WeedMapDatasetInterface.get_mean_std(TRAIN_FOLDERS, LAWEED_CHANNELS, SUBSET)
         self.transform = Normalize(means, stds)
         model.eval()
         model.cuda()
@@ -56,9 +71,122 @@ class LaweedVegetationDetector:
         seg_class[seg_class == 2] = 255
         seg_class[seg_class == 1] = 255
         return seg_class
+    
+class SplitLawinVegetationDetector:
+    def __init__(self):
+        pth = torch.load(LAWIN_PATH)
+        model = SplitLawin({'output_channels': 3, 'num_classes': 3, 'backbone': 'MiT-B1', "side_pretrained": "G",
+                            'backbone_pretrained': True, "main_channels": 3, "input_channels": 5, })
+        weights = {k[7:]: v for k, v in pth['net'].items()}
+        model.load_state_dict(weights)
+        means, stds = WeedMapDatasetInterface.get_mean_std(TRAIN_FOLDERS, LAWIN_CHANNELS, SUBSET)
+        self.transform = Normalize(means, stds)
+        model.eval()
+        model.cuda()
 
+        self.model = model
+
+    def __call__(self, img):
+        img = self.transform(img)
+        seg = self.model(img.unsqueeze(0).cuda())
+        seg_class = seg.argmax(1)
+        seg_class[seg_class == 2] = 255
+        seg_class[seg_class == 1] = 255
+        return seg_class
+    
 
 class CropRowDetector:
+    def __init__(self, crop_detector) -> None:
+        self.crop_detector = LaweedVegetationDetector() if crop_detector is None else crop_detector
+
+    def detect_crop(self, input_img):
+        seg = self.crop_detector(input_img)
+        return seg.squeeze(0).type(torch.uint8)
+    
+    def predict(self, input_img):
+        raise NotImplementedError
+    
+    def predict_from_mask(self, mask):
+        raise NotImplementedError
+
+
+class AbstractHoughCropRowDetector(CropRowDetector):
+    CROP_AS_TOL = "crop_as_tol"
+
+    def __init__(self,
+                 step_theta=1,
+                 step_rho=1,
+                 threshold=10,
+                 angle_error=3,
+                 clustering_tol=2,
+                 uniform_significance=0.1,
+                 crop_detector=None,
+                 ):
+        super().__init__(crop_detector)
+        self.step_theta = step_theta
+        self.step_rho = step_rho
+        self.threshold = threshold
+        self.angle_error = angle_error
+        self.clustering_tol = clustering_tol
+        self.mean_crop_size = None
+        self.diag_len = None
+        self.uniform_significance = uniform_significance
+
+    def calculate_connectivity(self, input_img):
+        """
+        Regions extracted with PyTorch with GPU
+        :param input_img: Binary Tensor located on GPU
+        :return: connectivity tensor (N, 6) where each row is (centroid x, centroid y, x0, y0, x1, y1)
+        """
+        if len(input_img.shape) == 3:
+            if input_img.shape[0] == 1:
+                input_img = input_img.squeeze(0)
+            else:
+                raise ValueError("Must be 2D tensor")
+        components = connected_components_labeling(input_img)[1:]
+
+        def get_region(label):
+            where_t = torch.where(label == components)
+            y0 = where_t[0][0]  # First dimension is sorted
+            y1 = where_t[0][-1]
+            x0 = where_t[-1].min()
+            x1 = where_t[-1].max()
+            cx = (torch.round((x1 + x0) / 2)).int()
+            cy = (torch.round((y1 + y0) / 2)).int()
+            return torch.tensor([cx, cy, x0, y0, x1, y1, x1 - x0 + 1, y1 - y0 + 1])
+
+        labels = components.unique()[1:]  # First one is background
+        if len(labels) == 0:
+            return torch.tensor([])
+        regions = torch.stack(tuple(map(get_region, labels)))
+        self.mean_crop_size = ((regions[:, 4] - regions[:, 2]).float().mean()
+                               + (regions[:, 5] - regions[:, 3]).float().mean()) / 2
+        return components, regions
+    
+    def test_if_uniform(self, thetas):
+        """
+        Test if the rho values are uniform
+        Args:
+            rhos: rho values
+        Returns:
+            True if uniform
+        """
+        return kstest((thetas - thetas.min()) / (thetas.max() - thetas.min()), "uniform").statistic < self.uniform_significance
+
+    def predict(self, input_img, return_mean_crop_size=False, return_crop_mask=False, return_components=False):
+        """
+        Detect rows
+        Args:
+            input_img: Input tensor
+            return_mean_crop_size: tells if return the mean crop size
+
+        Returns:
+
+        """
+        crop_mask = self.detect_crop(input_img)
+        return self.predict_from_mask(crop_mask, return_mean_crop_size, return_crop_mask, return_components)
+
+class ModifiedHoughCropRowDetector(AbstractHoughCropRowDetector):
     IDX_CX = 0
     IDX_CY = 1
     IDX_X0 = 2
@@ -68,8 +196,6 @@ class CropRowDetector:
     IDX_WIDTH = 6
     IDX_HEIGHT = 7
 
-    CROP_AS_TOL = "crop_as_tol"
-
     def __init__(self,
                  step_theta=1,
                  step_rho=1,
@@ -78,6 +204,7 @@ class CropRowDetector:
                  clustering_tol=2,
                  displacement_function=max_displacement,
                  crop_detector=None,
+                 uniform_significance=0.1,
                  ):
         """
 
@@ -89,19 +216,15 @@ class CropRowDetector:
             You can set 'crop_as_tol' to pick the medium crop size as tol
         :param displacement_function: Function used to choose the square whose center is the centroid of a crop
         """
-        self.step_theta = step_theta
-        self.step_rho = step_rho
-        self.threshold = threshold
-        self.crop_detector = LaweedVegetationDetector() if crop_detector is None else crop_detector
+        super().__init__(
+            crop_detector=crop_detector,
+            step_theta=step_theta,
+            step_rho=step_rho,
+            threshold=threshold,
+            angle_error=angle_error,
+            clustering_tol=clustering_tol,
+            uniform_significance=uniform_significance,)
         self.displacement = displacement_function
-        self.angle_error = angle_error
-        self.clustering_tol = clustering_tol
-        self.mean_crop_size = None
-        self.diag_len = None
-
-    def detect_crop(self, input_img):
-        seg = self.crop_detector(input_img)
-        return seg.squeeze(0).type(torch.uint8)
 
     def hough_sequential(self, shape, connection_dataframe):
         width, height = shape
@@ -179,35 +302,6 @@ class CropRowDetector:
         self.mean_crop_size = (conn['width'].mean() + conn['height'].mean()) / 2
         return conn
 
-    def calculate_connectivity(self, input_img):
-        """
-        Regions extracted with PyTorch with GPU
-        :param input_img: Binary Tensor located on GPU
-        :return: connectivity tensor (N, 6) where each row is (centroid x, centroid y, x0, y0, x1, y1)
-        """
-        if len(input_img.shape) == 3:
-            if input_img.shape[0] == 1:
-                input_img = input_img.squeeze(0)
-            else:
-                raise ValueError("Must be 2D tensor")
-        components = connected_components_labeling(input_img)[1:]
-
-        def get_region(label):
-            where_t = torch.where(label == components)
-            y0 = where_t[0][0]  # First dimension is sorted
-            y1 = where_t[0][-1]
-            x0 = where_t[-1].min()
-            x1 = where_t[-1].max()
-            cx = (torch.round((x1 + x0) / 2)).int()
-            cy = (torch.round((y1 + y0) / 2)).int()
-            return torch.tensor([cx, cy, x0, y0, x1, y1, x1 - x0 + 1, y1 - y0 + 1])
-
-        labels = components.unique()[1:]  # First one is background
-        regions = torch.stack(tuple(map(get_region, labels)))
-        self.mean_crop_size = ((regions[:, 4] - regions[:, 2]).float().mean()
-                               + (regions[:, 5] - regions[:, 3]).float().mean()) / 2
-        return regions
-
     def calculate_mask(self, shape, regions):
         """
         Draws a mask from the region tensor
@@ -225,19 +319,19 @@ class CropRowDetector:
             ] = 255
         return displ_mask
 
-    def increase_recall(self, regions):
-        def get_neighbours(cx, cy, regions, threshold):
-            return \
-                    (regions[:, self.IDX_CX] - cx).abs() < threshold & \
-                    (regions[:, self.IDX_CY] - cy).abs() < threshold
+    # def increase_recall(self, regions):
+    #     def get_neighbours(cx, cy, regions, threshold):
+    #         return \
+    #                 (regions[:, self.IDX_CX] - cx).abs() < threshold & \
+    #                 (regions[:, self.IDX_CY] - cy).abs() < threshold
 
-        with contextlib.suppress(IndexError):
-            for i in range(regions.shape[0]):
-                cx, cy, x0, y0, x1, y1, width, height = regions[i]
-                neighbours = get_neighbours(cx, cy, regions, self.displacement(width, height) * 4)
-                if len(neighbours) > 0:
-                    new_bbox = merge_bboxes(regions[neighbours][:, self.IDX_X0:self.IDX_Y1 + 1])
-                    for j in range(len(neighbours)):
+    #     with contextlib.suppress(IndexError):
+    #         for i in range(regions.shape[0]):
+    #             cx, cy, x0, y0, x1, y1, width, height = regions[i]
+    #             neighbours = get_neighbours(cx, cy, regions, self.displacement(width, height) * 4)
+    #             if len(neighbours) > 0:
+    #                 new_bbox = merge_bboxes(regions[neighbours][:, self.IDX_X0:self.IDX_Y1 + 1])
+    #                 for j in range(len(neighbours)):
 
     def filter_lines(self, accumulator):
         """
@@ -289,20 +383,7 @@ class CropRowDetector:
         cluster_indices.append(i + 1)
         return thetas_rhos, cluster_indices
 
-    def get_medians(self, theta_rhos: torch.Tensor, cluster_index):
-        """
-        Get the median lines from each cluster
-        :param theta_rhos: tensor for thetas and rhos (N, 2)
-        :param cluster_index: list of indices for each cluster start
-        :return: medians from each cluster
-        """
-        if theta_rhos.shape[0] > 0:
-            return torch.stack(
-                [theta_rhos[(i + j) // 2] for i, j in previous_iterator(cluster_index, return_first=False)])
-        else:
-            return torch.tensor([])
-
-    def predict(self, input_img, return_mean_crop_size=False, return_crop_mask=False):
+    def predict_from_mask(self, mask, return_mean_crop_size=False, return_crop_mask=False, return_components=False):
         """
         Detect rows
         Args:
@@ -312,31 +393,97 @@ class CropRowDetector:
         Returns:
 
         """
-        crop_mask = self.detect_crop(input_img)
-        return self.predict_from_mask(crop_mask, return_mean_crop_size, return_crop_mask)
-
-    def predict_from_mask(self, mask, return_mean_crop_size=False, return_crop_mask=False):
-        """
-        Detect rows
-        Args:
-            input_img: Input tensor
-            return_mean_crop_size: tells if return the mean crop size
-
-        Returns:
-
-        """
-        width, height = mask.shape[1:]
+        width, height = mask.shape
         crop_mask = mask.cuda()
-        connectivity_df = self.calculate_connectivity(crop_mask)
+        components, connectivity_df = self.calculate_connectivity(crop_mask)
         enhanced_mask = self.calculate_mask((width, height), connectivity_df)
         accumulator = self.hough(enhanced_mask.shape, connectivity_df)
         filtered_acc, theta_index = self.filter_lines(accumulator)
         pos_acc, theta_index = self.positivize_rhos(filtered_acc, theta_index)
         thetas_rhos, clusters_index = self.cluster_lines(pos_acc, theta_index)
-        medians = self.get_medians(thetas_rhos, clusters_index)
+        medians = get_medians(thetas_rhos, clusters_index)
         res = medians,
         if return_mean_crop_size:
             res += (self.mean_crop_size,)
         if return_crop_mask:
             res += (crop_mask,)
+        if return_components:
+            res += (components,)
+        return res[0] if len(res) == 1 else res
+
+
+class HoughCropRowDetector(AbstractHoughCropRowDetector):
+
+    def hough(self, mask):
+        """
+        Apply hough transform to the mask
+        :param mask: mask tensor
+        :return: (rho, theta) tensor
+        """
+        step_theta = self.step_theta * np.pi / 180
+        lines = cv2.HoughLines(mask.cpu().numpy(), self.step_rho, step_theta, self.threshold)
+        return torch.tensor([]) if lines is None else torch.tensor(lines).squeeze(1)
+    
+    def filter_lines(self, lines):
+        """
+        Filter lines that doesn't have the theta mode
+        :param lines: (rho, theta) tensor
+        :return: filtered lines
+        """
+        thetas = lines[:, 1]
+        n_bins = int(180 / self.step_theta)
+        hist = torch.histogram(thetas, bins=n_bins, range=(0, np.pi))
+        theta_mode = hist.bin_edges[hist.hist.argmax()]
+        step_theta = self.step_theta * np.pi / 180
+        thetas_in_bin = (thetas >= theta_mode - step_theta) & (thetas <= theta_mode + step_theta)
+        return lines[thetas_in_bin]
+    
+    def cluster_lines(self, lines: torch.Tensor):
+        """
+        Cluster lines basing on rhos with a certain tolerance
+        :param lines: (rho, theta) tensor
+        :return: cluster list indices: index where each cluster starts
+        """
+        clustering_tol = self.mean_crop_size if self.clustering_tol == self.CROP_AS_TOL else self.clustering_tol
+        rhos = lines[:, 0]
+        sorted_lines = lines[torch.argsort(rhos)]
+        cluster_indices = [0]
+        if sorted_lines.shape[0] > 1:
+            for i in range(1, sorted_lines.shape[0]):
+                if abs(sorted_lines[i][0] - sorted_lines[i - 1][0]) > clustering_tol:
+                    cluster_indices.append(i)
+        else:
+            i = 0
+        cluster_indices.append(i + 1)
+        return sorted_lines, cluster_indices
+
+    def predict_from_mask(self, mask, return_mean_crop_size=False, return_crop_mask=False, return_components=False):
+        """
+        Detect rows
+        Args:
+            input_img: Input tensor
+            return_mean_crop_size: tells if return the mean crop size
+
+        Returns:
+
+        """
+        crop_mask = mask.cuda()
+        components, regions = self.calculate_connectivity(crop_mask) # To calculate the mean crop size
+        if len(regions) == 0:
+            res = torch.tensor([]),
+        else:
+            rho_theta = self.hough(crop_mask)
+            if len(rho_theta) == 0 or self.test_if_uniform(rho_theta[:, 1]):
+                res = torch.tensor([]),
+            else:
+                filtered_lines = self.filter_lines(rho_theta)
+                thetas_rhos, clusters_index = self.cluster_lines(filtered_lines)
+                medians = get_medians(thetas_rhos, clusters_index)
+                res = medians,
+        if return_mean_crop_size:
+            res += (self.mean_crop_size,)
+        if return_crop_mask:
+            res += (crop_mask,)
+        if return_components:
+            res += (components,)
         return res[0] if len(res) == 1 else res
