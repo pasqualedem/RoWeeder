@@ -78,6 +78,7 @@ class CropRowDetector:
                  clustering_tol=2,
                  displacement_function=max_displacement,
                  crop_detector=None,
+                 crop_merge_multiplier=1
                  ):
         """
 
@@ -88,6 +89,7 @@ class CropRowDetector:
         :param clustering_tol: Rho tolerance to select put a line in the same cluster as the previous one
             You can set 'crop_as_tol' to pick the medium crop size as tol
         :param displacement_function: Function used to choose the square whose center is the centroid of a crop
+        :param crop_merge_multiplier: how much multiply from the displacement from the centroid to find other crops for merging into one bbox
         """
         self.step_theta = step_theta
         self.step_rho = step_rho
@@ -98,6 +100,7 @@ class CropRowDetector:
         self.clustering_tol = clustering_tol
         self.mean_crop_size = None
         self.diag_len = None
+        self.crop_merge_multiplier = crop_merge_multiplier
 
     def detect_crop(self, input_img):
         seg = self.crop_detector(input_img)
@@ -213,7 +216,7 @@ class CropRowDetector:
         Draws a mask from the region tensor
 
         :param shape: mask shape
-        :param regions: region tensor (N, 6)
+        :param regions: region tensor (N, 8)
         :return: Drew mask
         """
         displ_mask = torch.zeros(shape, dtype=torch.uint8)
@@ -225,18 +228,26 @@ class CropRowDetector:
             ] = 255
         return displ_mask
 
+
+    # def inverse_hough():
+        
+    
+
     def increase_recall(self, regions):
+        """
+        Temporary Failed
+        """
         def get_neighbours(cx, cy, regions, threshold):
             return \
-                    (regions[:, self.IDX_CX] - cx).abs() < threshold & \
-                    (regions[:, self.IDX_CY] - cy).abs() < threshold
+                    ((regions[:, self.IDX_CX] - cx).abs() < threshold) & \
+                    ((regions[:, self.IDX_CY] - cy).abs() < threshold)
 
         presence = torch.ones(regions.shape[0], dtype=torch.bool)
         for i in range(regions.shape[0]):
             cx, cy, x0, y0, x1, y1, width, height = regions[i]
-            neighbours = get_neighbours(cx, cy, regions[presence], self.displacement(width, height) * 4)
-            if len(neighbours) > 0:
-                neighbours = presence.argwhere()[neighbours]  # Get back indices to original tensor
+            neighbours = get_neighbours(cx, cy, regions[presence], self.displacement(width, height) * self.crop_merge_multiplier)
+            if neighbours.sum() > 1: # Itself
+                neighbours = presence.argwhere().squeeze(1)[neighbours]  # Get back indices to original tensor
                 new_bbox = merge_bboxes(regions[neighbours])
                 regions[neighbours[-1]] = new_bbox
                 presence[neighbours[:-1]] = False

@@ -16,6 +16,11 @@ import pandas as pd
 from utils import remove_suffix
 
 
+def change_state(src, dest):
+    st.session_state[dest] = st.session_state[src]
+    st.session_state['i'] = st.session_state[src]
+    
+
 def get_datasets():
     name = "SpringWheatCropRows"
 
@@ -85,12 +90,24 @@ def image_formatter(im):
 
 def display_datasets():
     st_state = st.session_state
-    i = st_state['i']
+    if st_state['img_name'] != "":
+        found = False
+        for k, name in enumerate(st_state['images']):
+            if st_state['img_name'] in name:
+                i = k
+                found = True
+                st_state['i'] = i
+        if not found:
+            st.write("img not found")
+            return
+    else:
+        i = st_state['i']
     dataset_dict = st.session_state['dataset_dict']
     img_path = dataset_dict[0]['path']
     crop_rows = st_state['rows']
 
     col1,  col2 = st.columns(2)
+    st.write(st_state['images'][i])
     with col1:
         st.write('## Image')
         st.image(Image.open(os.path.join(img_path, st_state['images'][i])), width=300)
@@ -119,6 +136,8 @@ if __name__ == "__main__":
         st.session_state["dataset_dict"] = dataset_dict
         st.session_state["rows"] = crop_rows
 
-    st.session_state['i'] = st.slider('i', max_value=len(st.session_state['images']))  # 👈 this is a widget
+    st.slider('i', max_value=len(st.session_state['images']), step=1, key="slider_i", on_change=lambda: change_state("slider_i", "number_i"))  # 👈 this is a widget
+    st.number_input('i', key='number_i', value=0, on_change=lambda: change_state("number_i", "slider_i"))
+    st.text_input(value="", label="img_name", key="img_name")
 
     display_datasets()
