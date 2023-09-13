@@ -18,6 +18,7 @@ from labeling import label as label_fn
 
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
+OUTDIR = "dataset/masks"
 
 
 @click.group()
@@ -194,15 +195,15 @@ def manage_clearml_crop_mask(uri, outpath, version=None):
 
 @main.command("label")
 @click.option("--root", default=DATA_ROOT, type=click.STRING)
+@click.option("--outdir", default=OUTDIR, type=click.STRING)
 @click.option("--threshold", default=150, type=click.INT)
 @click.option("--checkpoint", default=None)
-def label(root, checkpoint, threshold):
+def label(root, outdir, checkpoint, threshold):
     """
     :param root: Base folder of the dataset
     :param threshold: Threshold for the SplitLawinVegetationDetector
     """
-    label_fn(root=root, checkpoint=checkpoint, threshold=threshold)
-
+    label_fn(root=root, outdir=outdir, checkpoint=checkpoint, threshold=threshold)
 
 
 if __name__ == '__main__':

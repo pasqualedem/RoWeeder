@@ -19,6 +19,40 @@ LAWIN_CHANNELS = ['R', 'G', 'B', 'NIR', 'RE']
 SUBSET = 'rededge'
 
 
+def line_intersection(segment_start, segment_end, line_slope, line_intercept):
+    x1, y1 = segment_start
+    x2, y2 = segment_end
+
+    # Check if the segment is vertical
+    if x1 == x2:
+        # Check if the line is also vertical (no intersection)
+        if line_slope is None:
+            return None
+        # Calculate the x-coordinate of the intersection
+        x_intersect = x1
+        # Calculate the y-coordinate of the intersection using the line equation
+        y_intersect = line_slope * x_intersect + line_intercept
+    else:
+        # Calculate the slope of the segment
+        segment_slope = (y2 - y1) / (x2 - x1)
+        
+        # Check if the segment and line are parallel (no intersection)
+        if segment_slope == line_slope:
+            return None
+        
+        # Calculate the x-coordinate of the intersection
+        x_intersect = (line_intercept - y1 + segment_slope * x1) / (segment_slope - line_slope)
+        
+        # Calculate the y-coordinate of the intersection using the segment equation
+        y_intersect = segment_slope * x_intersect + y1
+
+    # Check if the intersection point is within the segment bounds
+    if (x1 <= x_intersect <= x2 or x2 <= x_intersect <= x1) and (y1 <= y_intersect <= y2 or y2 <= y_intersect <= y1):
+        return (x_intersect, y_intersect)
+    else:
+        return None
+
+
 def get_circular_interval(inf, sup, interval_max):
     if sup < inf:
         return (0, sup), (inf, interval_max)
@@ -73,8 +107,8 @@ class LaweedVegetationDetector:
         return seg_class
     
 class SplitLawinVegetationDetector:
-    def __init__(self):
-        pth = torch.load(LAWIN_PATH)
+    def __init__(self, checkpoint_path=LAWIN_PATH):
+        pth = torch.load(checkpoint_path)
         model = SplitLawin({'output_channels': 3, 'num_classes': 3, 'backbone': 'MiT-B1', "side_pretrained": "G",
                             'backbone_pretrained': True, "main_channels": 3, "input_channels": 5, })
         weights = {k[7:]: v for k, v in pth['net'].items()}
@@ -121,6 +155,7 @@ class AbstractHoughCropRowDetector(CropRowDetector):
                  clustering_tol=2,
                  uniform_significance=0.1,
                  crop_detector=None,
+                 theta_reduction_threshold=1.0,
                  ):
         super().__init__(crop_detector)
         self.step_theta = step_theta
@@ -131,6 +166,7 @@ class AbstractHoughCropRowDetector(CropRowDetector):
         self.mean_crop_size = None
         self.diag_len = None
         self.uniform_significance = uniform_significance
+        self.theta_reduction_threshold = theta_reduction_threshold
 
     def calculate_connectivity(self, input_img):
         """
@@ -138,6 +174,7 @@ class AbstractHoughCropRowDetector(CropRowDetector):
         :param input_img: Binary Tensor located on GPU
         :return: connectivity tensor (N, 6) where each row is (centroid x, centroid y, x0, y0, x1, y1)
         """
+        input_img = input_img.type(torch.uint8)
         if len(input_img.shape) == 3:
             if input_img.shape[0] == 1:
                 input_img = input_img.squeeze(0)
@@ -157,11 +194,31 @@ class AbstractHoughCropRowDetector(CropRowDetector):
 
         labels = components.unique()[1:]  # First one is background
         if len(labels) == 0:
-            return torch.tensor([])
+            return torch.tensor([]), torch.tensor([])
         regions = torch.stack(tuple(map(get_region, labels)))
         self.mean_crop_size = ((regions[:, 4] - regions[:, 2]).float().mean()
                                + (regions[:, 5] - regions[:, 3]).float().mean()) / 2
         return components, regions
+    
+    def revive_border_lines(self, mask, lines, filtered_lines):
+        """
+        Revive border lines from the filtered lines if they are close to the border
+        :param lines: lines tensor
+        :param filtered_lines: filtered lines tensor
+        :return: revived lines tensor
+        """
+        mask = mask.squeeze(0).cpu().type(torch.uint8).numpy()
+        step_theta = self.step_theta * np.pi / 180
+        theta_mode = filtered_lines[:, 1].mode().values.item()
+        reduced_threshold = int((1 - np.abs(np.sin(2*theta_mode))) * (1 - self.theta_reduction_threshold) / 1 + self.theta_reduction_threshold)
+        lines = cv2.HoughLines(mask, self.step_rho, step_theta, reduced_threshold)
+        if lines is None:
+            return torch.tensor([])
+        lines = torch.tensor(lines).squeeze(1)
+        thetas = lines[:, 1]
+        thetas_in_bin = (thetas >= theta_mode - step_theta) & (thetas <= theta_mode + step_theta)
+        lines = lines[thetas_in_bin]
+        return lines
     
     def test_if_uniform(self, thetas):
         """
@@ -328,11 +385,7 @@ class ModifiedHoughCropRowDetector(AbstractHoughCropRowDetector):
             max(int(cy - displacement), 0): min(int(cy + displacement), shape[0]),
             max(int(cx - displacement), 0): min(int(cx + displacement), shape[1])
             ] = 255
-        return displ_mask
-
-
-    # def inverse_hough():
-        
+        return displ_mask      
     
 
     def increase_recall(self, regions):
@@ -415,6 +468,11 @@ class ModifiedHoughCropRowDetector(AbstractHoughCropRowDetector):
         Returns:
 
         """
+        if len(mask.shape) == 3:
+            if mask.shape[0] == 1:
+                mask = mask.squeeze(0)
+            else:
+                raise ValueError("Must be 2D tensor")
         width, height = mask.shape
         crop_mask = mask.cuda()
         components, connectivity_df = self.calculate_connectivity(crop_mask)
@@ -443,7 +501,8 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
         :return: (rho, theta) tensor
         """
         step_theta = self.step_theta * np.pi / 180
-        lines = cv2.HoughLines(mask.cpu().numpy(), self.step_rho, step_theta, self.threshold)
+        mask = mask.squeeze(0).cpu().type(torch.uint8).numpy()
+        lines = cv2.HoughLines(mask, self.step_rho, step_theta, self.threshold)
         return torch.tensor([]) if lines is None else torch.tensor(lines).squeeze(1)
     
     def filter_lines(self, lines):
@@ -479,7 +538,7 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
         cluster_indices.append(i + 1)
         return sorted_lines, cluster_indices
 
-    def predict_from_mask(self, mask, return_mean_crop_size=False, return_crop_mask=False, return_components=False):
+    def predict_from_mask(self, mask, return_mean_crop_size=False, return_crop_mask=False, return_components=False, return_original_lines=False):
         """
         Detect rows
         Args:
@@ -489,6 +548,7 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
         Returns:
 
         """
+        original_lines = None
         crop_mask = mask.cuda()
         components, regions = self.calculate_connectivity(crop_mask) # To calculate the mean crop size
         if len(regions) == 0:
@@ -499,6 +559,10 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
                 res = torch.tensor([]),
             else:
                 filtered_lines = self.filter_lines(rho_theta)
+                if self.theta_reduction_threshold < 1.0:
+                    if return_original_lines:
+                        original_lines = filtered_lines
+                    filtered_lines = self.revive_border_lines(crop_mask, filtered_lines, rho_theta)
                 thetas_rhos, clusters_index = self.cluster_lines(filtered_lines)
                 medians = get_medians(thetas_rhos, clusters_index)
                 res = medians,
@@ -508,4 +572,6 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
             res += (crop_mask,)
         if return_components:
             res += (components,)
+        if return_original_lines:
+            res += (original_lines,)
         return res[0] if len(res) == 1 else res

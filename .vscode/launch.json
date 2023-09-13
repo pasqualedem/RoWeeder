@@ -8,10 +8,10 @@
             "name": "Label",
             "type": "python",
             "request": "launch",
-            "program": "detect.py",
+            "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["label", "--root", "../Datasets/WeedMap/0_rotations_processed_003_test/RedEdge"]
+            "args": ["label", "--root", "../Datasets/WeedMap/0_rotations_processed_003_test/RedEdge", "--checkpoint", "checkpoints/SplitLawin_B1_RedEdge_RGBNIRRE.pth", "--outdir", "dataset/lines/RedEdge"]
         }
     ]
 }
