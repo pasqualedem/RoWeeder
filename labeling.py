@@ -11,7 +11,6 @@ from ezdl.datasets import WeedMapDataset
 from detector import HoughCropRowDetector, SplitLawinVegetationDetector, ModifiedHoughCropRowDetector
 
 def get_drawn_img(img, theta_rho, color=(255, 255, 255)):
-    print(img.shape)
     draw_img = np.array(img[:3].transpose(1, 2, 0)).copy()
     draw_img = draw_img.astype(np.uint8)
     for i in range(0, len(theta_rho)):
@@ -23,7 +22,7 @@ def get_drawn_img(img, theta_rho, color=(255, 255, 255)):
         y0 = b * rho
         pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
         pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
-        cv2.line(draw_img, pt1, pt2, color, 1, cv2.LINE_AA)
+        cv2.line(draw_img, pt1, pt2, color, 2, cv2.LINE_AA)
     return draw_img
 
 

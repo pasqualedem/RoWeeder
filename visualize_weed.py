@@ -59,6 +59,22 @@ def image_formatter(im):
     return f'<img src="data:image/jpeg;base64,{image_base64(im)}">'
 
 
+def map_grayscale_to_rgb(img):
+    mapping = {
+        240: (0, 255, 0),  # Value 240 maps to (255, 0, 0) in RGB
+        254: (255, 0, 0),  # Value 254 maps to (255, 255, 255) in RGB
+    }
+    # Initialize an empty RGB image
+    rgb_image = np.zeros((256, 256, 3), dtype=np.uint8)
+
+    # Map greyscale values to RGB using the defined mapping
+    for greyscale_value, rgb_color in mapping.items():
+        mask = img == greyscale_value
+        rgb_image[mask] = rgb_color
+    print(rgb_image.shape)
+    return rgb_image
+
+
 def display_datasets():
     st_state = st.session_state
     if st_state['img_name'] != "":
@@ -88,9 +104,13 @@ def display_datasets():
                                 theta_reduction_threshold=st.session_state['theta_reduction_threshold'])
     lines, original_lines = detector.predict_from_mask(mask, return_original_lines=True)
 
-    to_draw_gt = (np.array(gt) * 255).astype(np.uint8)[np.newaxis, ...].repeat(3, axis=0)
-    line_gt = get_drawn_img(to_draw_gt, lines, color=(255, 0, 0))
-    line_mask = get_drawn_img((mask.cpu().numpy() * 255).astype(np.uint8).repeat(3, axis=0), lines, color=(255, 0, 0))
+    to_draw_gt = (np.array(gt) * 255).astype(np.uint8)
+    print(np.unique(to_draw_gt))
+    to_draw_gt = map_grayscale_to_rgb(to_draw_gt).transpose(2, 0, 1)   
+    line_gt = get_drawn_img(to_draw_gt, lines, color=(255, 0, 255))
+    
+    to_draw_mask = mask.cpu().numpy().astype(np.uint8).repeat(3, axis=0)
+    line_mask = get_drawn_img(to_draw_mask, lines, color=(255, 0, 255))
 
     st.write(additional['input_name'])
     with col1:
@@ -103,7 +123,6 @@ def display_datasets():
         st.image(Image.fromarray(line_gt), width=300)
     with col3:
         st.write('## Prediction')
-        output_mask = (mask.cpu().squeeze(0).numpy()).astype(np.uint8)
         st.image(line_mask, width=300)
     st.dataframe(pd.DataFrame(lines.cpu(), columns=["rho", "theta"]))
     st.dataframe(pd.DataFrame((original_lines.cpu() if original_lines is not None else []), columns=["rho", "theta"]))
