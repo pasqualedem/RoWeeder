@@ -17,7 +17,7 @@ from ezdl.datasets import WeedMapDataset
 
 from detector import HoughCropRowDetector, SplitLawinVegetationDetector, ModifiedHoughCropRowDetector
 from utils import remove_suffix
-from labeling import get_drawn_img, label_from_row
+from labeling import get_drawn_img, label_from_row, label
 
 
 
@@ -172,6 +172,26 @@ if __name__ == "__main__":
         st.slider('theta_reduction_threshold', min_value=0.0, max_value=1.0, step=0.01, value=1.0, key="theta_reduction_threshold")
 
     display_datasets()
+    
+    st.text_input(value="dataset/generated", label="out_dir", key="out_dir")
+    if st.button("label"):
+        bar = st.progress(0)
+        for i in label(
+            root=st.session_state['root'],
+            outdir=st.session_state['out_dir'],
+            checkpoint=checkpoint,
+            threshold=st.session_state['threshold'],
+            step_theta=st.session_state['step_theta'],
+            step_rho=st.session_state['step_rho'],
+            angle_error=st.session_state['angle_error'],
+            clustering_tol=st.session_state['clustering_tol'],
+            uniform_significance=st.session_state['uniform_significance'],
+            theta_reduction_threshold=st.session_state['theta_reduction_threshold'],
+            interactive=True,
+        ):
+            bar.progress(i / len(st.session_state['dataset']))
+            
+    
 
     # st.slider('theta', min_value=0.0, max_value=5.0, step=0.01, value=0.0, key="theta")
     # st.slider('rho', min_value=0, max_value=1000, step=1, value=0, key="rho")
