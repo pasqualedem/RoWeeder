@@ -1,4 +1,5 @@
 ezdl
+torch
 super_gradients
 scikit-learn
 scikit-image

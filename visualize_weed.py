@@ -7,9 +7,9 @@ from PIL import Image
 
 from clearml import Dataset, StorageManager, Task
 from clearml.backend_config.config import Config
-from urllib.parse import urlparse, urlunparse
+from torchmetrics.functional import f1_score
 
-import os
+import torch
 import numpy as np
 import pandas as pd
 
@@ -17,7 +17,7 @@ from ezdl.datasets import WeedMapDataset
 
 from detector import HoughCropRowDetector, SplitLawinVegetationDetector, ModifiedHoughCropRowDetector
 from utils import remove_suffix
-from labeling import get_drawn_img
+from labeling import get_drawn_img, label_from_row
 
 
 
@@ -59,11 +59,17 @@ def image_formatter(im):
     return f'<img src="data:image/jpeg;base64,{image_base64(im)}">'
 
 
-def map_grayscale_to_rgb(img):
-    mapping = {
-        240: (0, 255, 0),  # Value 240 maps to (255, 0, 0) in RGB
-        254: (255, 0, 0),  # Value 254 maps to (255, 255, 255) in RGB
-    }
+def gt_fix(gt):
+    gt[gt == 10000] = 1
+    return gt
+
+
+def map_grayscale_to_rgb(img, mapping=None):
+    if mapping is None:
+        mapping = {
+            240: (0, 255, 0),  # Value 240 maps to (255, 0, 0) in RGB
+            254: (255, 0, 0),  # Value 254 maps to (255, 255, 255) in RGB
+        }
     # Initialize an empty RGB image
     rgb_image = np.zeros((256, 256, 3), dtype=np.uint8)
 
@@ -71,7 +77,6 @@ def map_grayscale_to_rgb(img):
     for greyscale_value, rgb_color in mapping.items():
         mask = img == greyscale_value
         rgb_image[mask] = rgb_color
-    print(rgb_image.shape)
     return rgb_image
 
 
@@ -88,7 +93,11 @@ def display_datasets():
             st.write("img not found")
             return
     else:
-        i = st_state['i']
+        try:
+            i = st_state['i']
+        except KeyError:
+            i = 0
+            st_state['i'] = i
 
     col1,  col2, col3 = st.columns(3)
     img, gt, additional = st_state['dataset'][i]
@@ -105,14 +114,24 @@ def display_datasets():
     lines, original_lines = detector.predict_from_mask(mask, return_original_lines=True)
 
     to_draw_gt = (np.array(gt) * 255).astype(np.uint8)
-    print(np.unique(to_draw_gt))
     to_draw_gt = map_grayscale_to_rgb(to_draw_gt).transpose(2, 0, 1)   
     line_gt = get_drawn_img(to_draw_gt, lines, color=(255, 0, 255))
-    
-    to_draw_mask = mask.cpu().numpy().astype(np.uint8).repeat(3, axis=0)
-    line_mask = get_drawn_img(to_draw_mask, lines, color=(255, 0, 255))
+    to_draw_mask = mask.cpu().numpy().astype(np.uint8)
+    line_mask = get_drawn_img(torch.zeros_like(torch.tensor(to_draw_mask)).numpy(), lines, color=(255, 0, 255))
+    argmask = mask[0].type(torch.uint8)
+    weed_map = label_from_row(argmask, torch.tensor(line_mask).permute(2, 0, 1)[0])
+    gt = gt_fix(torch.tensor(np.array(gt))).cuda()
+    f1 = f1_score(weed_map.argmax(dim=0).cuda(), gt, num_classes=3, average='macro', mdmc_average="global")
+    weed_map = weed_map.argmax(dim=0).cpu().numpy().astype(np.uint8)
+    weed_map = map_grayscale_to_rgb(weed_map,
+                                    mapping={
+                                        1: (0, 255, 0),
+                                        2: (255, 0, 0)
+                                        }).transpose(2, 0, 1)
+    weed_map = get_drawn_img(weed_map, lines, color=(255, 0, 255))
 
     st.write(additional['input_name'])
+    st.write("f1 score: ", f1)
     with col1:
         st.write('## Image')
         output_img = (img[:3].squeeze(0).permute(1, 2, 0).numpy() * 255).astype(np.uint8)
@@ -123,7 +142,7 @@ def display_datasets():
         st.image(Image.fromarray(line_gt), width=300)
     with col3:
         st.write('## Prediction')
-        st.image(line_mask, width=300)
+        st.image(weed_map, width=300)
     st.dataframe(pd.DataFrame(lines.cpu(), columns=["rho", "theta"]))
     st.dataframe(pd.DataFrame((original_lines.cpu() if original_lines is not None else []), columns=["rho", "theta"]))
 
