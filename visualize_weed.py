@@ -15,9 +15,9 @@ import pandas as pd
 
 from ezdl.datasets import WeedMapDataset
 
-from detector import HoughCropRowDetector, SplitLawinVegetationDetector, ModifiedHoughCropRowDetector
-from utils import remove_suffix
-from labeling import get_drawn_img, label_from_row, label
+from ssl.detector import HoughCropRowDetector, SplitLawinVegetationDetector, ModifiedHoughCropRowDetector
+from ssl.utils import remove_suffix
+from ssl.labeling import get_drawn_img, label_from_row, label
 
 
 

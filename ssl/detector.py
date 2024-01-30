@@ -7,9 +7,13 @@ from ezdl.datasets import WeedMapDatasetInterface
 from ezdl.models.lawin import Laweed, SplitLawin
 from torchvision.transforms import Normalize, ToTensor, Compose
 from torch.nn import functional as F
-from histogramdd import histogramdd
-from utils import (
-    previous_iterator,
+from ssl.histogramdd import histogramdd
+from ssl.utils import (
+    get_circular_interval,
+    get_medians,
+    line_in_a_rectangle_len,
+    max_displacement,
+    polar_to_cartesian,
     tensor_intersection,
     remove_element_from_tensor,
     merge_bboxes,
@@ -22,163 +26,6 @@ TRAIN_FOLDERS = ["000", "001", "002", "004"]
 LAWEED_CHANNELS = ["R", "G", "B"]
 LAWIN_CHANNELS = ["R", "G", "B", "NIR", "RE"]
 SUBSET = "rededge"
-
-
-def intersection_point(l1, l2):
-    m1, b1 = l1
-    m2, b2 = l2
-    # Check if one of the lines is vertical
-    if m1 is None:
-        x = b1
-        y = m2 * x + b2
-    elif m2 is None:
-        x = b2
-        y = m1 * x + b1
-    else:
-        # Calculate the x-coordinate of the intersection point
-        x = (b2 - b1) / (m1 - m2)
-
-        # Use one of the line equations to find the y-coordinate
-        y = m1 * x + b1
-
-    return x, y
-
-
-def polar_to_cartesian(theta_rho_matrix):
-    # Extract theta and rho from the input matrix
-    theta = theta_rho_matrix[:, 0]
-    rho = theta_rho_matrix[:, 1]
-
-    # Convert polar coordinates to Cartesian coordinates
-    m = torch.tan(theta)
-    b = rho / torch.cos(theta)
-
-    # Combine m and b into a new matrix
-    cartesian_matrix = torch.stack((m, b), dim=1)
-
-    return cartesian_matrix
-
-
-def rectangle_line_intersection(rectangle, line):
-    (p1x, p1y), (p2x, p2y), (p3x, p3y), (p4x, p4y) = rectangle
-
-    up_line = (0, p1y)
-    right_line = (None, p2x)
-    bottom_line = (0, p3y)
-    left_line = (None, p4x)
-
-    up_intersect = intersection_point(up_line, line)
-    right_intersect = intersection_point(right_line, line)
-    bottom_intersect = intersection_point(bottom_line, line)
-    left_intersect = intersection_point(left_line, line)
-
-    on_up = (
-        up_intersect is not None and up_intersect[0] > p1x and up_intersect[0] < p2x
-    )
-    on_right = (
-        right_intersect is not None
-        and right_intersect[1] >= p3y
-        and right_intersect[1] <= p2y
-    )
-    on_bottom = (
-        bottom_intersect is not None
-        and bottom_intersect[0] > p4x
-        and bottom_intersect[0] < p3x
-    )
-    on_left = (
-        left_intersect is not None
-        and left_intersect[1] >= p4y
-        and left_intersect[1] <= p1y
-    )
-
-    if on_up + on_right + on_bottom + on_left > 2:
-        raise ValueError("Line intersects more than 2 sides of the rectangle")
-    elif on_up + on_right + on_bottom + on_left < 2:
-        return None, None
-
-    p_int_1, p_int_2 = np.array(
-        [up_intersect, right_intersect, bottom_intersect, left_intersect]
-    )[np.array([on_up, on_right, on_bottom, on_left])]
-    return p_int_1, p_int_2
-
-
-def line_in_a_rectangle_len(rectangle, line):
-    p1_int, p2_int = rectangle_line_intersection(rectangle, line)
-    return 0 if p1_int is None else np.linalg.norm(p1_int - p2_int)
-
-
-def line_intersection(segment_start, segment_end, line_slope, line_intercept):
-    x1, y1 = segment_start
-    x2, y2 = segment_end
-
-    # Check if the segment is vertical
-    if x1 == x2:
-        # Check if the line is also vertical (no intersection)
-        if line_slope is None:
-            return None
-        # Calculate the x-coordinate of the intersection
-        x_intersect = x1
-        # Calculate the y-coordinate of the intersection using the line equation
-        y_intersect = line_slope * x_intersect + line_intercept
-    else:
-        # Calculate the slope of the segment
-        segment_slope = (y2 - y1) / (x2 - x1)
-
-        # Check if the segment and line are parallel (no intersection)
-        if segment_slope == line_slope:
-            return None
-
-        # Calculate the x-coordinate of the intersection
-        x_intersect = (line_intercept - y1 + segment_slope * x1) / (
-            segment_slope - line_slope
-        )
-
-        # Calculate the y-coordinate of the intersection using the segment equation
-        y_intersect = segment_slope * x_intersect + y1
-
-    # Check if the intersection point is within the segment bounds
-    if (x1 <= x_intersect <= x2 or x2 <= x_intersect <= x1) and (
-        y1 <= y_intersect <= y2 or y2 <= y_intersect <= y1
-    ):
-        return (x_intersect, y_intersect)
-    else:
-        return None
-
-
-def get_circular_interval(inf, sup, interval_max):
-    if sup < inf:
-        return (0, sup), (inf, interval_max)
-    if sup > interval_max:
-        return (0, sup - interval_max), (inf, interval_max)
-    if inf < 0:
-        return (0, sup), (interval_max + inf, interval_max)
-    return ((inf, sup),)
-
-
-def max_displacement(width, height):
-    return int(width / 2 if width > height else height / 2)
-
-
-def mean_displacement(width, height):
-    return int((width + height) / 4)
-
-
-def get_medians(theta_rhos: torch.Tensor, cluster_index):
-    """
-    Get the median lines from each cluster
-    :param theta_rhos: tensor for thetas and rhos (N, 2)
-    :param cluster_index: list of indices for each cluster start
-    :return: medians from each cluster
-    """
-    if theta_rhos.shape[0] > 0:
-        return torch.stack(
-            [
-                theta_rhos[(i + j) // 2]
-                for i, j in previous_iterator(cluster_index, return_first=False)
-            ]
-        )
-    else:
-        return torch.tensor([])
 
 
 class LaweedVegetationDetector:
@@ -350,8 +197,7 @@ class AbstractHoughCropRowDetector(CropRowDetector):
             ]
         )
         intersection_lens = [
-            line_in_a_rectangle_len(rectangle_mask, line)
-            for line in cartesian_lines
+            line_in_a_rectangle_len(rectangle_mask, line) for line in cartesian_lines
         ]
         intersection_lens = torch.tensor(intersection_lens)
         min_intersection_len = intersection_lens.argmin()
