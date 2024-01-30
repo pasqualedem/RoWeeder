@@ -14,15 +14,15 @@ from torchvision.transforms import functional as F
 from ezdl.transforms import \
     PairRandomCrop, SegOneHot, ToLong, FixValue, Denormalize, PairRandomFlip, squeeze0, \
     PairFlip, PairFourCrop
-from data.stats import STATS
+from selfweed.data.stats import STATS
 from sklearn.model_selection import train_test_split
 
 from super_gradients.training import utils as core_utils
 from super_gradients.common.abstractions.abstract_logger import get_logger
 from ezdl.data import DatasetInterface
 
-from data import stats
-from utils import remove_suffix
+from selfweed.data import stats
+from selfweed.utils import remove_suffix
 
 logger = get_logger(__name__)
 

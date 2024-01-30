@@ -15,9 +15,9 @@ import pandas as pd
 
 from ezdl.datasets import WeedMapDataset
 
-from ssl.detector import HoughCropRowDetector, SplitLawinVegetationDetector, ModifiedHoughCropRowDetector
-from ssl.utils import remove_suffix
-from ssl.labeling import get_drawn_img, label_from_row, label
+from selfweed.detector import HoughCropRowDetector, SplitLawinVegetationDetector, ModifiedHoughCropRowDetector
+from selfweed.utils import remove_suffix
+from selfweed.labeling import get_drawn_img, label_from_row, label
 
 
 
@@ -30,10 +30,13 @@ def change_state(src, dest):
 def get_dataset():
     channels = ['R', 'G', 'B', 'NIR', 'RE']
     input_transform = lambda x: x
-    dataset = WeedMapDataset(root=st.session_state['root'], channels=channels,
-                                transform=input_transform, target_transform=lambda x: x,
-                                return_path=True)
-    return dataset
+    return WeedMapDataset(
+        root=st.session_state['root'],
+        channels=channels,
+        transform=input_transform,
+        target_transform=lambda x: x,
+        return_path=True,
+    )
 
 
 @st.cache

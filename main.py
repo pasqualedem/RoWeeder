@@ -3,18 +3,19 @@ import shutil
 
 import click
 import numpy as np
-import cv2
 import pandas as pd
 from PIL import Image
 from clearml import Dataset
 from tqdm import tqdm
 
-from detector import ModifiedHoughCropRowDetector
-from data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
 from ezdl.utils.grid import make_grid
 from ezdl.utils.utilities import load_yaml
 
-from labeling import label as label_fn
+from selfweed.data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
+from selfweed.labeling import label as label_fn
+from selfweed.detector import ModifiedHoughCropRowDetector
+from selfweed.utils import get_square_from_lines
+from selfweed.rotate import rotate_ortho
 
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
@@ -24,30 +25,6 @@ OUTDIR = "dataset/masks"
 @click.group()
 def main():
     pass
-
-
-def get_line_boxes(theta, rho, is_deg, img_width, img_height):
-    if is_deg:
-        theta = np.deg2rad(theta)
-    a = np.cos(theta)
-    b = np.sin(theta)
-    x0 = (a * rho) + img_width / 2
-    y0 = (b * rho) + img_height / 2
-    x1 = int(x0 + img_width * (-b))
-    y1 = int(y0 + img_height * (a))
-    x2 = int(x0 - img_width * (-b))
-    y2 = int(y0 - img_height * (a))
-    return (x1, y1), (x2, y2)
-
-
-def get_square_from_lines(img_array, theta, rho, displacement, width, height):
-    p1, p2 = get_line_boxes(theta, rho + displacement, True, width, height)
-    p3, p4 = get_line_boxes(theta, rho - displacement, True, width, height)
-    rect = cv2.minAreaRect(np.array([p1, p2, p3, p4]))
-    box = cv2.boxPoints(rect)
-    box = np.int0(box)
-    cv2.drawContours(img_array, [box], 0, 255, -1)
-    return img_array
 
 
 @main.command("detect")
@@ -191,7 +168,19 @@ def manage_clearml_crop_mask(uri, outpath, version=None):
     dataset.add_files(path=outpath)
     dataset.upload(output_url=uri)
     dataset.finalize()
-
+    
+    
+@main.command("rotate")
+@click.option("--root", default=DATA_ROOT, type=click.STRING)
+@click.option("--outdir", default=OUTDIR, type=click.STRING)
+@click.option("--angle", default=150, type=click.INT)
+def rotate(root, outdir, angle):
+    """
+    :param root: Base folder of the dataset
+    :param angle: Angle of rotation
+    """
+    rotate_ortho(input_folder=root, output_folder=outdir, angle=angle)
+    
 
 @main.command("label")
 @click.option("--root", default=DATA_ROOT, type=click.STRING)

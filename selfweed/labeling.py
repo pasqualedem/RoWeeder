@@ -11,7 +11,7 @@ from ezdl.datasets import WeedMapDataset
 from cc_torch import connected_components_labeling
 from datetime import datetime
 
-from detector import (
+from selfweed.detector import (
     HoughCropRowDetector,
     SplitLawinVegetationDetector,
     ModifiedHoughCropRowDetector,

@@ -7,8 +7,8 @@ from ezdl.datasets import WeedMapDatasetInterface
 from ezdl.models.lawin import Laweed, SplitLawin
 from torchvision.transforms import Normalize, ToTensor, Compose
 from torch.nn import functional as F
-from ssl.histogramdd import histogramdd
-from ssl.utils import (
+from selfweed.histogramdd import histogramdd
+from selfweed.utils import (
     get_circular_interval,
     get_medians,
     line_in_a_rectangle_len,
@@ -179,29 +179,29 @@ class AbstractHoughCropRowDetector(CropRowDetector):
         :return: revived lines tensor
         """
         raise NotImplementedError("Dismissed")
-        mask = mask.squeeze(0).cpu().type(torch.uint8).numpy()
-        step_theta = self.step_theta * np.pi / 180
-        theta_mode = filtered_lines[:, 1].mode().values.item()
-        print(theta_mode, self.theta_reduction_threshold, step_theta)
-        reduced_threshold = self.theta_reduction_threshold * self.threshold
-        lines = cv2.HoughLines(mask, self.step_rho, step_theta, reduced_threshold)
-        if lines is None:
-            return torch.tensor([])
-        cartesian_lines = polar_to_cartesian(torch.tensor(lines))
-        rectangle_mask = np.array(
-            [
-                (mask.shape[1], 0),
-                (mask.shape[1], mask.shape[0]),
-                (0, mask.shape[0]),
-                (0, 0),
-            ]
-        )
-        intersection_lens = [
-            line_in_a_rectangle_len(rectangle_mask, line) for line in cartesian_lines
-        ]
-        intersection_lens = torch.tensor(intersection_lens)
-        min_intersection_len = intersection_lens.argmin()
-        return (lines, reduced_threshold) if return_reduced_threshold else lines
+        # mask = mask.squeeze(0).cpu().type(torch.uint8).numpy()
+        # step_theta = self.step_theta * np.pi / 180
+        # theta_mode = filtered_lines[:, 1].mode().values.item()
+        # print(theta_mode, self.theta_reduction_threshold, step_theta)
+        # reduced_threshold = self.theta_reduction_threshold * self.threshold
+        # lines = cv2.HoughLines(mask, self.step_rho, step_theta, reduced_threshold)
+        # if lines is None:
+        #     return torch.tensor([])
+        # cartesian_lines = polar_to_cartesian(torch.tensor(lines))
+        # rectangle_mask = np.array(
+        #     [
+        #         (mask.shape[1], 0),
+        #         (mask.shape[1], mask.shape[0]),
+        #         (0, mask.shape[0]),
+        #         (0, 0),
+        #     ]
+        # )
+        # intersection_lens = [
+        #     line_in_a_rectangle_len(rectangle_mask, line) for line in cartesian_lines
+        # ]
+        # intersection_lens = torch.tensor(intersection_lens)
+        # min_intersection_len = intersection_lens.argmin()
+        # return (lines, reduced_threshold) if return_reduced_threshold else lines
 
     def test_if_uniform(self, thetas):
         """

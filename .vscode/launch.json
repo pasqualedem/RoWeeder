@@ -12,6 +12,15 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": ["label", "--root", "../Datasets/WeedMap/0_rotations_processed_003_test/RedEdge", "--checkpoint", "checkpoints/SplitLawin_B1_RedEdge_RGBNIRRE.pth", "--outdir", "dataset/lines/RedEdge"]
+        },
+        {
+            "name": "Rotate",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["rotate", "--root", "../Datasets/WeedMap/ortho/003/composite-png", "--outdir", "dataset/ortho/003/composite-png", "--angle", "-48"]
         }
     ]
 }
