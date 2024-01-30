@@ -111,7 +111,7 @@ def display_datasets():
                                 clustering_tol=st.session_state['clustering_tol'],
                                 uniform_significance=st.session_state['uniform_significance'],
                                 theta_reduction_threshold=st.session_state['theta_reduction_threshold'])
-    lines, original_lines = detector.predict_from_mask(mask, return_original_lines=True)
+    lines, original_lines, reduced_threshold = detector.predict_from_mask(mask, return_original_lines=True, return_reduced_threshold=True)
 
     to_draw_gt = (np.array(gt) * 255).astype(np.uint8)
     to_draw_gt = map_grayscale_to_rgb(to_draw_gt).transpose(2, 0, 1)   
@@ -132,6 +132,7 @@ def display_datasets():
 
     st.write(additional['input_name'])
     st.write("f1 score: ", f1)
+    st.write("reduced_threshold: ", reduced_threshold)
     with col1:
         st.write('## Image')
         output_img = (img[:3].squeeze(0).permute(1, 2, 0).numpy() * 255).astype(np.uint8)
