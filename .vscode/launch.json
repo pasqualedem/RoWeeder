@@ -21,6 +21,24 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": ["rotate", "--root", "../Datasets/WeedMap/ortho/003/composite-png", "--outdir", "dataset/ortho/003/composite-png", "--angle", "-48"]
-        }
+        },
+        {
+            "name": "Patchify_512",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["patchify", "--root", "dataset/ortho/003/composite-png", "--outdir", "dataset/patches/512/003", "--patch_size", "512"]
+        },
+        {
+            "name": "Patchify_1024",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["patchify", "--root", "dataset/ortho/003/composite-png", "--outdir", "dataset/patches/1024/003", "--patch_size", "1024"]
+        },
     ]
 }

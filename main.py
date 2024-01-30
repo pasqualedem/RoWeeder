@@ -15,7 +15,7 @@ from selfweed.data.spring_wheat import SpringWheatDataset, SpringWheatMaskedData
 from selfweed.labeling import label as label_fn
 from selfweed.detector import ModifiedHoughCropRowDetector
 from selfweed.utils import get_square_from_lines
-from selfweed.rotate import rotate_ortho
+from selfweed.preprocess import divide_ortho_into_patches, rotate_ortho
 
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
@@ -180,6 +180,18 @@ def rotate(root, outdir, angle):
     :param angle: Angle of rotation
     """
     rotate_ortho(input_folder=root, output_folder=outdir, angle=angle)
+    
+    
+@main.command("patchify")
+@click.option("--root", default=DATA_ROOT, type=click.STRING)
+@click.option("--outdir", default=OUTDIR, type=click.STRING)
+@click.option("--patch_size", default=1024, type=click.INT)
+def rotate(root, outdir, patch_size):
+    """
+    :param root: Base folder of the dataset
+    :param angle: Angle of rotation
+    """
+    divide_ortho_into_patches(root, outdir, patch_size)
     
 
 @main.command("label")
