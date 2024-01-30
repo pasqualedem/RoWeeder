@@ -15,12 +15,11 @@ def rotate_ortho(input_folder, output_folder, angle):
     channels_path = [
         os.path.join(input_folder, channel) for channel in channels_filename
     ]
-    ortho = []
-    for channel in channels_path:
-        if channel.endswith(".tif"):
-            ortho.append(Image.fromarray(tiff.imread(channel)))
-        else:
-            ortho.append(Image.open(channel))
+    gt_index = channels_filename.index("groundtruth.tif")
+    channels_filename.pop(gt_index)
+    ground_truth = channels_path.pop(gt_index)
+    ortho = [Image.open(channel) for channel in channels_path]
+    gt = Image.fromarray(tiff.imread(ground_truth))
 
     rotated = [
         torchvision.transforms.functional.rotate(
@@ -31,18 +30,23 @@ def rotate_ortho(input_folder, output_folder, angle):
         )
         for channel in ortho
     ]
+    rotated_gt = torchvision.transforms.functional.rotate(
+        gt,
+        angle,
+        interpolation=torchvision.transforms.InterpolationMode.NEAREST,
+        expand=True,
+    )
 
     # Crop black borders
-    ground_truth = channels_filename.index("groundtruth.tif")
+
     cropped = []
     borders = None
-    for i in range(len(rotated)):
-        if i == ground_truth:
-            continue
-        channel, borders = crop_black_borders(rotated[i])
+    for item in rotated:
+        channel, borders = crop_black_borders(item)
         cropped.append(channel)
-    rotated_gt, _ = crop_black_borders(rotated[ground_truth], borders=borders)
-    cropped.insert(ground_truth, rotated_gt)
+    rotated_gt, _ = crop_black_borders(rotated_gt, borders=borders)
+    cropped.append(rotated_gt)
+    channels_filename.append("groundtruth.tif")
 
     # Check shapes are equal
     shapes = [np.asarray(channel).shape[:2] for channel in cropped]

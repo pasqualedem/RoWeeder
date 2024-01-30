@@ -1,3 +1,5 @@
+from enum import Enum
+from typing import Any
 import cv2
 import numpy as np
 import pandas as pd
@@ -26,6 +28,15 @@ TRAIN_FOLDERS = ["000", "001", "002", "004"]
 LAWEED_CHANNELS = ["R", "G", "B"]
 LAWIN_CHANNELS = ["R", "G", "B", "NIR", "RE"]
 SUBSET = "rededge"
+
+
+class HoughDetectorDict(Enum):
+    LINES = "lines"
+    CROP_MASK = "crop_mask"
+    MEAN_CROP_SIZE = "mean_crop_size"
+    COMPONENTS = "components"
+    ORIGINAL_LINES = "original_lines"
+    REDUCED_THRESHOLD = "reduced_threshold"
 
 
 class LaweedVegetationDetector:
@@ -57,7 +68,19 @@ class LaweedVegetationDetector:
         seg_class[seg_class == 2] = 255
         seg_class[seg_class == 1] = 255
         return seg_class
-
+    
+    
+class NDVIVegetationDetector:
+    def __init__(self, threshold=0.6) -> None:
+        self.threshold = threshold
+        self.nir_idx = 3
+        self.red_idx = 0
+        
+    def __call__(self, x) -> Any:
+        x = x.cuda()
+        ndvi = (x[self.nir_idx] - x[self.red_idx]) / (x[self.nir_idx] + x[self.red_idx])
+        return ((ndvi > self.threshold).type(torch.uint8) * 255).unsqueeze(0)
+        
 
 class SplitLawinVegetationDetector:
     def __init__(self, checkpoint_path=LAWIN_PATH):
@@ -123,6 +146,7 @@ class AbstractHoughCropRowDetector(CropRowDetector):
         uniform_significance=0.1,
         crop_detector=None,
         theta_reduction_threshold=1.0,
+        theta_value=None,
     ):
         super().__init__(crop_detector)
         self.step_theta = step_theta
@@ -134,6 +158,7 @@ class AbstractHoughCropRowDetector(CropRowDetector):
         self.diag_len = None
         self.uniform_significance = uniform_significance
         self.theta_reduction_threshold = theta_reduction_threshold
+        self.theta_value = theta_value
 
     def calculate_connectivity(self, input_img):
         """
@@ -238,7 +263,7 @@ class AbstractHoughCropRowDetector(CropRowDetector):
         return self.predict_from_mask(
             crop_mask, return_mean_crop_size, return_crop_mask, return_components
         )
-
+    
 
 class ModifiedHoughCropRowDetector(AbstractHoughCropRowDetector):
     IDX_CX = 0
@@ -565,7 +590,7 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
         thetas = lines[:, 1]
         n_bins = int(180 / self.step_theta)
         hist = torch.histogram(thetas, bins=n_bins, range=(0, np.pi))
-        theta_mode = hist.bin_edges[hist.hist.argmax()]
+        theta_mode = hist.bin_edges[hist.hist.argmax()] if self.theta_value is None else self.theta_value
         step_theta = self.step_theta * np.pi / 180
         thetas_in_bin = (thetas >= theta_mode - step_theta) & (
             thetas <= theta_mode + step_theta
@@ -638,16 +663,18 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
                     )
                 thetas_rhos, clusters_index = self.cluster_lines(filtered_lines)
                 medians = get_medians(thetas_rhos, clusters_index)
-                res = (medians,)
+                res = medians
+                
+        return_dict = {HoughDetectorDict.LINES: res}
         if return_mean_crop_size:
-            res += (self.mean_crop_size,)
+            return_dict[HoughDetectorDict.MEAN_CROP_SIZE] = self.mean_crop_size
         if return_crop_mask:
-            res += (crop_mask,)
+            return_dict[HoughDetectorDict.CROP_MASK] = crop_mask
         if return_components:
-            res += (components,)
+            return_dict[HoughDetectorDict.COMPONENTS] = components
         if return_original_lines:
-            res += (original_lines,)
+            return_dict[HoughDetectorDict.ORIGINAL_LINES] = original_lines
         if return_reduced_threshold:
-            res += (reduced_threshold,)
+            return_dict[HoughDetectorDict.REDUCED_THRESHOLD] = reduced_threshold
 
-        return res[0] if len(res) == 1 else res
+        return return_dict
