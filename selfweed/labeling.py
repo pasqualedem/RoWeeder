@@ -13,6 +13,7 @@ from datetime import datetime
 
 from selfweed.detector import (
     HoughCropRowDetector,
+    HoughDetectorDict,
     SplitLawinVegetationDetector,
     ModifiedHoughCropRowDetector,
 )
@@ -62,7 +63,8 @@ def label_from_row(mask, row_image):
 
 def out_summary_file(
     outdir,
-    checkpoint,
+    plant_detector,
+    fixed_theta=None,
     threshold=150,
     step_theta=1,
     step_rho=1,
@@ -75,9 +77,9 @@ def out_summary_file(
     os.makedirs(outdir, exist_ok=True)
     with open(summary_file, "w") as f:
         f.write(
-            f"checkpoint: {checkpoint}\nthreshold: {threshold}\nstep_theta: {step_theta}\nstep_rho: {step_rho}\nangle_error: {angle_error}\nclustering_tol: {clustering_tol}\nuniform_significance: {uniform_significance}\ntheta_reduction_threshold: {theta_reduction_threshold}\n"
+            f"plant_detector: {str(plant_detector)}\nfixed_theta: {fixed_theta}\nthreshold: {threshold}\nstep_theta: {step_theta}\nstep_rho: {step_rho}\nangle_error: {angle_error}\nclustering_tol: {clustering_tol}\nuniform_significance: {uniform_significance}\ntheta_reduction_threshold: {theta_reduction_threshold}\n"
         )
-        
+
 
 def gt_defix(gt):
     gt[gt == 1] = 10000
@@ -87,7 +89,8 @@ def gt_defix(gt):
 def label(
     root,
     outdir,
-    checkpoint,
+    dataset,
+    plant_detector,
     threshold=150,
     step_theta=1,
     step_rho=1,
@@ -95,13 +98,13 @@ def label(
     clustering_tol=2,
     uniform_significance=10,
     theta_reduction_threshold=1.00,
+    fixed_theta=None,
     interactive=False,
 ):
-    outdir = os.path.join(outdir, datetime.now().strftime('%d-%m-%Y_%H:%M:%S'))
+    outdir = os.path.join(outdir, datetime.now().strftime("%d-%m-%Y_%H:%M:%S"))
     os.makedirs(outdir, exist_ok=True)
     out_summary_file(
         outdir,
-        checkpoint,
         threshold=threshold,
         step_theta=step_theta,
         step_rho=step_rho,
@@ -109,17 +112,11 @@ def label(
         clustering_tol=clustering_tol,
         uniform_significance=uniform_significance,
         theta_reduction_threshold=theta_reduction_threshold,
+        fixed_theta=fixed_theta,
+        plant_detector=plant_detector,
     )
     channels = ["R", "G", "B", "NIR", "RE"]
     input_transform = lambda x: x
-    dataset = WeedMapDataset(
-        root=root,
-        channels=channels,
-        transform=input_transform,
-        target_transform=lambda x: x,
-        return_path=True,
-    )
-    labeler = SplitLawinVegetationDetector(checkpoint_path=checkpoint)
     detector = HoughCropRowDetector(
         threshold=threshold,
         step_theta=step_theta,
@@ -128,11 +125,12 @@ def label(
         clustering_tol=clustering_tol,
         uniform_significance=uniform_significance,
         theta_reduction_threshold=theta_reduction_threshold,
-        crop_detector=labeler,
+        crop_detector=plant_detector,
     )
     for i, (img, target, path) in enumerate(tqdm(dataset)):
-        mask = labeler(img)
-        lines, components = detector.predict_from_mask(mask, return_components=True)
+        mask = plant_detector(img)
+        result_dict = detector.predict_from_mask(mask)
+        lines = result_dict[HoughDetectorDict.LINES]
         blank = mask.cpu().numpy().astype(np.uint8)
         line_mask = get_drawn_img(
             torch.zeros_like(torch.tensor(blank)).numpy(), lines, color=(255, 0, 255)
@@ -140,10 +138,9 @@ def label(
         argmask = mask[0].type(torch.uint8)
         weed_map = label_from_row(argmask, torch.tensor(line_mask).permute(2, 0, 1)[0])
         weed_map = weed_map.argmax(dim=0)
-        weed_map = gt_defix(weed_map)
         weed_map = weed_map.cpu().numpy().astype(np.uint8)
         img_out_path = os.path.join(
-            outdir, os.path.basename(path["input_name"] + "_GroundTruth_iMap.png")
+            outdir, os.path.basename(path["input_name"])
         )
         cv2.imwrite(img_out_path, weed_map)
         if interactive:

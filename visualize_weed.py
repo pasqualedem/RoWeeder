@@ -132,12 +132,11 @@ def display_prediction():
         theta_reduction_threshold=st.session_state["theta_reduction_threshold"],
         theta_value=st.session_state["theta_value"],
     )
-    res = detector.predict_from_mask(
-        mask, return_original_lines=True, return_reduced_threshold=True
-    )
+    res = detector.predict_from_mask(mask)
     lines = res[HoughDetectorDict.LINES]
     original_lines = res[HoughDetectorDict.ORIGINAL_LINES]
-    reduced_threshold = res[HoughDetectorDict.REDUCED_THRESHOLD]
+    uniform_significance = res[HoughDetectorDict.UNIFORM_SIGNIFICANCE]
+    zero_reason = res[HoughDetectorDict.ZERO_REASON]
     
     gt = gt_fix(torch.tensor(np.array(gt))).cuda()
 
@@ -165,7 +164,8 @@ def display_prediction():
 
     st.write(additional["input_name"])
     st.write("f1 score: ", f1)
-    st.write("reduced_threshold: ", reduced_threshold)
+    st.write("uniform_significance: ", uniform_significance)
+    st.write("zero_reason: ", zero_reason)
     with col1:
         st.write("## Image")
         output_img = (img[:3].squeeze(0).permute(1, 2, 0).numpy() * 255).astype(
@@ -281,7 +281,8 @@ if __name__ == "__main__":
         for i in label(
             root=st.session_state["root"],
             outdir=st.session_state["out_dir"],
-            checkpoint=checkpoint,
+            dataset=st.session_state["dataset"],
+            plant_detector=st.session_state["labeller"],
             threshold=st.session_state["threshold"],
             step_theta=st.session_state["step_theta"],
             step_rho=st.session_state["step_rho"],
@@ -289,6 +290,7 @@ if __name__ == "__main__":
             clustering_tol=st.session_state["clustering_tol"],
             uniform_significance=st.session_state["uniform_significance"],
             theta_reduction_threshold=st.session_state["theta_reduction_threshold"],
+            fixed_theta=st.session_state["theta_value"],
             interactive=True,
         ):
             bar.progress(i / len(st.session_state["dataset"]))

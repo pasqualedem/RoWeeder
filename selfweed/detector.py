@@ -37,6 +37,8 @@ class HoughDetectorDict(Enum):
     COMPONENTS = "components"
     ORIGINAL_LINES = "original_lines"
     REDUCED_THRESHOLD = "reduced_threshold"
+    ZERO_REASON = "zero_reason"
+    UNIFORM_SIGNIFICANCE = "uniform_significance"
 
 
 class LaweedVegetationDetector:
@@ -68,22 +70,26 @@ class LaweedVegetationDetector:
         seg_class[seg_class == 2] = 255
         seg_class[seg_class == 1] = 255
         return seg_class
-    
-    
+
+
 class NDVIVegetationDetector:
     def __init__(self, threshold=0.6) -> None:
         self.threshold = threshold
         self.nir_idx = 3
         self.red_idx = 0
-        
+
     def __call__(self, x) -> Any:
         x = x.cuda()
         ndvi = (x[self.nir_idx] - x[self.red_idx]) / (x[self.nir_idx] + x[self.red_idx])
         return ((ndvi > self.threshold).type(torch.uint8) * 255).unsqueeze(0)
-        
+    
+    def __repr__(self) -> str:
+        return f"NDVI Vegetation Detector with threshold {self.threshold}"
+
 
 class SplitLawinVegetationDetector:
     def __init__(self, checkpoint_path=LAWIN_PATH):
+        self.checkpoint_path = checkpoint_path
         pth = torch.load(checkpoint_path)
         model = SplitLawin(
             {
@@ -114,6 +120,9 @@ class SplitLawinVegetationDetector:
         seg_class[seg_class == 2] = 255
         seg_class[seg_class == 1] = 255
         return seg_class
+    
+    def __repr__(self) -> str:
+        return f"SplitLawin Vegetation Detector with checkpoint {self.checkpoint_path}"
 
 
 class CropRowDetector:
@@ -236,12 +245,10 @@ class AbstractHoughCropRowDetector(CropRowDetector):
         Returns:
             True if uniform
         """
-        return (
-            kstest(
-                (thetas - thetas.min()) / (thetas.max() - thetas.min()), "uniform"
-            ).statistic
-            < self.uniform_significance
-        )
+        statistic = kstest(
+            (thetas - thetas.min()) / (thetas.max() - thetas.min()), "uniform"
+        ).statistic
+        return statistic < self.uniform_significance, statistic
 
     def predict(
         self,
@@ -263,7 +270,7 @@ class AbstractHoughCropRowDetector(CropRowDetector):
         return self.predict_from_mask(
             crop_mask, return_mean_crop_size, return_crop_mask, return_components
         )
-    
+
 
 class ModifiedHoughCropRowDetector(AbstractHoughCropRowDetector):
     IDX_CX = 0
@@ -590,7 +597,11 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
         thetas = lines[:, 1]
         n_bins = int(180 / self.step_theta)
         hist = torch.histogram(thetas, bins=n_bins, range=(0, np.pi))
-        theta_mode = hist.bin_edges[hist.hist.argmax()] if self.theta_value is None else self.theta_value
+        theta_mode = (
+            hist.bin_edges[hist.hist.argmax()]
+            if self.theta_value is None
+            else self.theta_value
+        )
         step_theta = self.step_theta * np.pi / 180
         thetas_in_bin = (thetas >= theta_mode - step_theta) & (
             thetas <= theta_mode + step_theta
@@ -623,11 +634,6 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
     def predict_from_mask(
         self,
         mask,
-        return_mean_crop_size=False,
-        return_crop_mask=False,
-        return_components=False,
-        return_original_lines=False,
-        return_reduced_threshold=False,
     ):
         """
         Detect rows
@@ -638,43 +644,42 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
         Returns:
 
         """
-        original_lines = None
         crop_mask = mask.cuda()
+        zero_reason = None
+        uniform_statistic = None
+        original_lines = torch.tensor([])
         components, regions = self.calculate_connectivity(
             crop_mask
         )  # To calculate the mean crop size
         reduced_threshold = None
         if len(regions) == 0:
-            res = (torch.tensor([]),)
+            zero_reason = "No components"
+            res = torch.tensor([])
         else:
-            rho_theta = self.hough(crop_mask)
-            if len(rho_theta) == 0 or self.test_if_uniform(rho_theta[:, 1]):
-                res = (torch.tensor([]),)
+            original_lines = self.hough(crop_mask)
+            if len(original_lines) == 0:
+                zero_reason = "No lines thresholded"
+                res = torch.tensor([])
             else:
-                filtered_lines = self.filter_lines(rho_theta)
-                if self.theta_reduction_threshold < 1.0:
-                    if return_original_lines:
-                        original_lines = filtered_lines
-                    filtered_lines, reduced_threshold = self.revive_border_lines(
-                        crop_mask,
-                        filtered_lines,
-                        rho_theta,
-                        return_reduced_threshold=True,
-                    )
+                is_uniform, uniform_statistic = self.test_if_uniform(original_lines[:, 1])
+                if is_uniform:
+                    zero_reason = "Uniform"
+                    res = torch.tensor([])
+                    
+                filtered_lines = self.filter_lines(original_lines)
                 thetas_rhos, clusters_index = self.cluster_lines(filtered_lines)
                 medians = get_medians(thetas_rhos, clusters_index)
                 res = medians
-                
-        return_dict = {HoughDetectorDict.LINES: res}
-        if return_mean_crop_size:
-            return_dict[HoughDetectorDict.MEAN_CROP_SIZE] = self.mean_crop_size
-        if return_crop_mask:
-            return_dict[HoughDetectorDict.CROP_MASK] = crop_mask
-        if return_components:
-            return_dict[HoughDetectorDict.COMPONENTS] = components
-        if return_original_lines:
-            return_dict[HoughDetectorDict.ORIGINAL_LINES] = original_lines
-        if return_reduced_threshold:
-            return_dict[HoughDetectorDict.REDUCED_THRESHOLD] = reduced_threshold
+
+        return_dict = {
+            HoughDetectorDict.LINES: res,
+            HoughDetectorDict.MEAN_CROP_SIZE: self.mean_crop_size,
+            HoughDetectorDict.CROP_MASK: crop_mask,
+            HoughDetectorDict.COMPONENTS: components,
+            HoughDetectorDict.ORIGINAL_LINES: original_lines,
+            HoughDetectorDict.REDUCED_THRESHOLD: reduced_threshold,
+            HoughDetectorDict.ZERO_REASON: zero_reason,
+            HoughDetectorDict.UNIFORM_SIGNIFICANCE: uniform_statistic,
+        }
 
         return return_dict
