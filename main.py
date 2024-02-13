@@ -74,6 +74,33 @@ def cli_row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, an
         row_detection_springwheat(**run)
 
 
+@main.command("experiment")
+@click.option(
+    "--parameters", default="parameters.yaml", help="Path to the parameters file"
+)
+@click.option(
+    "--parallel", default=False, help="Run the experiments in parallel", is_flag=True
+)
+@click.option(
+    "--only-create",
+    default=False,
+    help="Creates params files with running them",
+    is_flag=True,
+)
+def experiment(parameters, parallel, only_create):
+    from selfweed.experiment.experiment import experiment as run_experiment
+    run_experiment(param_path=parameters, parallel=parallel, only_create=only_create)
+
+        
+@main.command("run")
+@click.option(
+    "--parameters", default="parameters.yaml", help="Path to the parameters file"
+)
+def run(parameters):
+    from selfweed.experiment.experiment import run as run_single
+    run_single(param_path=parameters)
+
+
 def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_error, clustering_tol):
 
     crd = ModifiedHoughCropRowDetector(crop_detector="None",
