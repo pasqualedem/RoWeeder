@@ -10,14 +10,10 @@ from ezdl.models.lawin import Laweed, SplitLawin
 from torchvision.transforms import Normalize, ToTensor, Compose
 from torch.nn import functional as F
 from selfweed.histogramdd import histogramdd
-from selfweed.utils import (
+from selfweed.utils.utils import (
     get_circular_interval,
     get_medians,
-    line_in_a_rectangle_len,
     max_displacement,
-    polar_to_cartesian,
-    tensor_intersection,
-    remove_element_from_tensor,
     merge_bboxes,
 )
 from scipy.stats import kstest

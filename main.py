@@ -14,7 +14,7 @@ from ezdl.utils.utilities import load_yaml
 from selfweed.data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
 from selfweed.labeling import label as label_fn
 from selfweed.detector import ModifiedHoughCropRowDetector
-from selfweed.utils import get_square_from_lines
+from selfweed.utils.utils import get_square_from_lines
 from selfweed.preprocess import divide_ortho_into_patches, rotate_ortho
 
 DATA_ROOT = "dataset/processed"

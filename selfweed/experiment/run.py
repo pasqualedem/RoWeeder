@@ -5,10 +5,13 @@ from selfweed.models import MODEL_REGISTRY
 
 
 class Run:
-    def __init__(self, params):
+    def __init__(self):
+        pass
+    
+    def init(self, params):
         self.params = params
         self.model = MODEL_REGISTRY[params['model']['name']](**params['model']['params'])
-        self.data = get_dataloaders(params['data'])
+        self.data = get_dataloaders(params['dataset'])
         self.train_params = params['train']      
 
     def train(self):

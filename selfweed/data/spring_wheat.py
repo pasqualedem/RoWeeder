@@ -22,7 +22,7 @@ from super_gradients.common.abstractions.abstract_logger import get_logger
 from ezdl.data import DatasetInterface
 
 from selfweed.data import stats
-from selfweed.utils import remove_suffix
+from selfweed.utils.utils import remove_suffix
 
 logger = get_logger(__name__)
 

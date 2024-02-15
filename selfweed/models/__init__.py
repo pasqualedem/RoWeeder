@@ -1,6 +1,6 @@
-from build import build_rowwweder_segformer
+from selfweed.models.build import build_roweeder_segformer
 
 
 MODEL_REGISTRY = {
-    "rw_segformer": build_rowwweder_segformer,
+    "rw_segformer": build_roweeder_segformer,
 }

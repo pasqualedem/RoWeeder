@@ -207,9 +207,6 @@ class Experimenter:
                 for others, dot in zip(other_grids, dot_elements[1:])
             ]
 
-        # Modify starting grid and run to manage the resume
-        self.manage_resume()
-
         for i, grid in enumerate(self.grids):
             info = f"Found {len(grid)} runs from grid {i}"
             last_grid = (

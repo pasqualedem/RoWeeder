@@ -1,6 +1,6 @@
 from selfweed.models.rowweeder import RowWeeder
 
-from transformers.models.segformer.modeling_segformer import SegformerEncoder
+from transformers.models.segformer.modeling_segformer import SegformerForImageClassification
 
 
 def build_rowweeder_model(
@@ -18,23 +18,11 @@ def build_rowweeder_model(
     )
     
 
-def build_rowwweder_segformer(
+def build_roweeder_segformer(
     input_channels,
     embedding_dim=64,
     transformer_layers=4
 ):
-    encoder = SegformerEncoder(
-        num_channels=input_channels,
-        embed_dim=embedding_dim,
-        depth=transformer_layers,
-        num_heads=8,
-        mlp_ratio=4,
-        qkv_bias=True,
-        qk_scale=None,
-        drop_rate=0.0,
-        drop_path_rate=0.1,
-        ape=False,
-        patch_norm=True,
-        use_checkpoint=False,
-    )
+    encoder = SegformerForImageClassification.from_pretrained("nvidia/mit-b0")
+    encoder = encoder.segformer.encoder
     return build_rowweeder_model(encoder, input_channels, embedding_dim, transformer_layers)

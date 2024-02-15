@@ -10,16 +10,26 @@ from einops import rearrange
 
 
 def rotate_ortho(input_folder, output_folder, angle):
+    subfolders = "composite-png", "groundtruth"
     os.makedirs(output_folder, exist_ok=True)
-    channels_filename = os.listdir(input_folder)
+    channels_filename = os.listdir(os.path.join(input_folder, subfolders[0]))
+    ground_truth = os.path.join(input_folder, subfolders[1])
+    if len(os.listdir(ground_truth)) > 0:
+        ground_truth = os.path.join(ground_truth, os.listdir(ground_truth)[0])
+    else:
+        ground_truth = channels_filename.pop(channels_filename.index("groundtruth.tif"))
+        ground_truth = os.path.join(input_folder, subfolders[0], ground_truth)
+    extension = os.path.splitext(ground_truth)[1]
+    
     channels_path = [
-        os.path.join(input_folder, channel) for channel in channels_filename
+        os.path.join(input_folder, subfolders[0], channel) for channel in channels_filename
     ]
-    gt_index = channels_filename.index("groundtruth.tif")
-    channels_filename.pop(gt_index)
-    ground_truth = channels_path.pop(gt_index)
+        
     ortho = [Image.open(channel) for channel in channels_path]
-    gt = Image.fromarray(tiff.imread(ground_truth))
+    if extension == ".tif":
+        gt = Image.fromarray(tiff.imread(ground_truth))
+    else:
+        gt = Image.open(ground_truth)
 
     rotated = [
         torchvision.transforms.functional.rotate(
@@ -40,18 +50,26 @@ def rotate_ortho(input_folder, output_folder, angle):
     # Crop black borders
 
     cropped = []
-    borders = None
+    borders = []
     for item in rotated:
-        channel, borders = crop_black_borders(item)
+        channel, border = crop_black_borders(item)
         cropped.append(channel)
-    rotated_gt, _ = crop_black_borders(rotated_gt, borders=borders)
-    cropped.append(rotated_gt)
-    channels_filename.append("groundtruth.tif")
+        borders.append(border)
 
     # Check shapes are equal
     shapes = [np.asarray(channel).shape[:2] for channel in cropped]
-    assert len(set(shapes)) == 1, "Shapes are not equal"
+    if len(set(shapes)) != 1:
+        print("Shapes are not equal, cropping to the largest shape")
+        argmax_shape = np.array([sum(shape) for shape in shapes]).argmax()
+        border = borders[argmax_shape]
+        cropped = [crop_black_borders(item, borders=border)[0] for item in rotated]
+    else:
+        borders = borders[0]
 
+    rotated_gt, _ = crop_black_borders(rotated_gt, borders=border)
+    cropped.append(rotated_gt)
+    channels_filename.append("groundtruth.tif")
+    
     for name, channel in zip(channels_filename, cropped):
         name = os.path.splitext(name)[0]
         channel.save(os.path.join(output_folder, f"{name}.png"))

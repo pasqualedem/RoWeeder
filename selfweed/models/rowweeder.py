@@ -14,8 +14,9 @@ class RowWeeder(nn.Module):
         super().__init__()
         self.encoder = encoder
         self.embedding_dim = embedding_dim
+        num_channels = len(input_channels)
         self.plant_encoder = nn.Sequential(
-            nn.Conv2d(input_channels, 64, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(num_channels, 64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),

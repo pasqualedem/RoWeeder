@@ -1,6 +1,7 @@
 .idea
 dataset
 venv
+wandb
 
 *.pth
 *.pyc
