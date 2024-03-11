@@ -5,10 +5,7 @@ from io import BytesIO
 import streamlit as st
 from PIL import Image
 
-from clearml import Dataset, StorageManager, Task
-from clearml.backend_config.config import Config
 from torchmetrics.functional import f1_score
-from ezdl.datasets import WeedMapDataset as WeedOldDataset
 
 import torch
 import numpy as np
@@ -17,13 +14,10 @@ import pandas as pd
 from selfweed.detector import (
     HoughCropRowDetector,
     HoughDetectorDict,
-    SplitLawinVegetationDetector,
-    ModifiedHoughCropRowDetector,
-    NDVIVegetationDetector
+    get_vegetation_detector as get_vegetation_detector_fn,
 )
-from selfweed.data.weedmap import WeedMapDataset as WeedNewDataset
-from selfweed.utils import remove_suffix
-from selfweed.labeling import get_drawn_img, label_from_row, label
+from selfweed.data import get_dataset
+from selfweed.labeling import get_drawn_img, label_from_row, label, save_and_label
 
 
 def change_state(src, dest):
@@ -31,30 +25,14 @@ def change_state(src, dest):
     st.session_state["i"] = st.session_state[src]
 
 
-def get_dataset(modality):
-    dataclass = WeedOldDataset if modality == "Old Dataset" else WeedNewDataset
-    channels = ["R", "G", "B", "NIR", "RE"]
-    input_transform = lambda x: x
-
-    return dataclass(
-        root=st.session_state["root"],
-        channels=channels,
-        transform=input_transform,
-        target_transform=lambda x: x,
-        return_path=True,
-    )
-
-
 @st.cache_resource
-def get_model(checkpoint):
-    return SplitLawinVegetationDetector(checkpoint_path=checkpoint)
-
-
 def get_vegetation_detector(checkpoint, ndvi_threshold=0.5):
-    if st.session_state["vegetation_detector"] == "SplitLawin":
-        return get_model(checkpoint)
-    elif st.session_state["vegetation_detector"] == "NDVIDetector":
-        return NDVIVegetationDetector(threshold=ndvi_threshold)
+    name = st.session_state["vegetation_detector"]
+    params = {
+        "checkpoint": checkpoint,
+        "threshold": ndvi_threshold,
+    }
+    return get_vegetation_detector_fn(name, params)
 
 
 def get_thumbnail(path):
@@ -137,7 +115,7 @@ def display_prediction():
     original_lines = res[HoughDetectorDict.ORIGINAL_LINES]
     uniform_significance = res[HoughDetectorDict.UNIFORM_SIGNIFICANCE]
     zero_reason = res[HoughDetectorDict.ZERO_REASON]
-    
+
     gt = gt_fix(torch.tensor(np.array(gt))).cuda()
 
     to_draw_gt = (gt.cpu().numpy()).astype(np.uint8)
@@ -204,12 +182,20 @@ if __name__ == "__main__":
             key="root",
             label="root",
         )
-        dataset = get_dataset(st.session_state['modality'])
+        fields = st.multiselect(
+            "Fields",
+            ["000", "001", "002", "003", "004"],
+            key="fields",
+            default=["000", "001", "002", "003", "004"],
+        )
+        dataset = get_dataset(
+            st.session_state["root"], st.session_state["modality"], fields
+        )
         st.session_state["dataset"] = dataset
 
         st.slider(
             "i",
-            max_value=len(st.session_state["dataset"]),
+            max_value=len(st.session_state["dataset"])-1,
             step=1,
             key="slider_i",
             on_change=lambda: change_state("slider_i", "number_i"),
@@ -221,13 +207,28 @@ if __name__ == "__main__":
             on_change=lambda: change_state("number_i", "slider_i"),
         )
         st.text_input(value="", label="img_name", key="img_name")
-        st.selectbox("Vegetation Detector", ["SplitLawin", "NDVIDetector"], key="vegetation_detector")
-        
-        ndvi_threshold = st.slider("ndvi_threshold", min_value=0.0, max_value=1.0, step=0.01, value=0.6, key="ndvi_threshold")
-        checkpoint = st.text_input(
-            value="checkpoints/SplitLawin_B1_RedEdge_RGBNIRRE.pth", label="checkpoint"
+        st.selectbox(
+            "Vegetation Detector",
+            ["SplitLawin", "NDVIDetector"],
+            key="vegetation_detector",
         )
-        st.session_state["labeller"] = get_vegetation_detector(checkpoint, ndvi_threshold=ndvi_threshold)
+
+        ndvi_threshold = st.slider(
+            "ndvi_threshold",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            value=0.6,
+            key="ndvi_threshold",
+        )
+        checkpoint = st.text_input(
+            value="checkpoints/SplitLawin_B1_RedEdge_RGBNIRRE.pth",
+            label="checkpoint",
+            key="checkpoint",
+        )
+        st.session_state["labeller"] = get_vegetation_detector(
+            checkpoint, ndvi_threshold=ndvi_threshold
+        )
     col1, col2 = st.columns(2)
     with col1:
         st.slider(
@@ -278,19 +279,30 @@ if __name__ == "__main__":
     st.text_input(value="dataset/generated", label="out_dir", key="out_dir")
     if st.button("label"):
         bar = st.progress(0)
-        for i in label(
-            root=st.session_state["root"],
+        for i in save_and_label(
             outdir=st.session_state["out_dir"],
-            dataset=st.session_state["dataset"],
-            plant_detector=st.session_state["labeller"],
-            threshold=st.session_state["threshold"],
-            step_theta=st.session_state["step_theta"],
-            step_rho=st.session_state["step_rho"],
-            angle_error=st.session_state["angle_error"],
-            clustering_tol=st.session_state["clustering_tol"],
-            uniform_significance=st.session_state["uniform_significance"],
-            theta_reduction_threshold=st.session_state["theta_reduction_threshold"],
-            fixed_theta=st.session_state["theta_value"],
+            plant_detector_params=dict(
+                name=st.session_state["vegetation_detector"],
+                params=dict(
+                    checkpoint=st.session_state["checkpoint"],
+                    ndvi_threshold=st.session_state["ndvi_threshold"],
+                ),
+            ),
+            hough_detector_params=dict(
+                threshold=st.session_state["threshold"],
+                step_theta=st.session_state["step_theta"],
+                step_rho=st.session_state["step_rho"],
+                angle_error=st.session_state["angle_error"],
+                clustering_tol=st.session_state["clustering_tol"],
+                uniform_significance=st.session_state["uniform_significance"],
+                theta_reduction_threshold=st.session_state["theta_reduction_threshold"],
+                theta_value=st.session_state["theta_value"],
+            ),
+            dataset_params=dict(
+                root=st.session_state["root"],
+                modality=st.session_state["modality"],
+                fields=st.session_state["fields"],
+            ),
             interactive=True,
         ):
             bar.progress(i / len(st.session_state["dataset"]))

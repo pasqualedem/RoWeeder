@@ -12,14 +12,15 @@ from ezdl.utils.grid import make_grid
 from ezdl.utils.utilities import load_yaml
 
 from selfweed.data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
-from selfweed.labeling import label as label_fn
+from selfweed.labeling import label as label_fn, load_and_label
 from selfweed.detector import ModifiedHoughCropRowDetector
 from selfweed.utils.utils import get_square_from_lines
 from selfweed.preprocess import divide_ortho_into_patches, rotate_ortho
 
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
-OUTDIR = "dataset/masks"
+OUTDIR = "dataset/generated"
+PARAMETERS = "parameters.yaml"
 
 
 @click.group()
@@ -222,16 +223,14 @@ def rotate(root, outdir, patch_size):
     
 
 @main.command("label")
-@click.option("--root", default=DATA_ROOT, type=click.STRING)
 @click.option("--outdir", default=OUTDIR, type=click.STRING)
-@click.option("--threshold", default=150, type=click.INT)
-@click.option("--checkpoint", default=None)
-def label(root, outdir, checkpoint, threshold):
+@click.option("--parameters", default=PARAMETERS, type=click.STRING)
+def label(outdir, parameters):
     """
-    :param root: Base folder of the dataset
-    :param threshold: Threshold for the SplitLawinVegetationDetector
+    :param outdir: Output directory
+    :param parameters: Parameters file
     """
-    label_fn(root=root, outdir=outdir, checkpoint=checkpoint, threshold=threshold)
+    load_and_label(outdir, param_file=parameters)
 
 
 if __name__ == '__main__':

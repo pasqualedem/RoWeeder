@@ -26,6 +26,13 @@ LAWIN_CHANNELS = ["R", "G", "B", "NIR", "RE"]
 SUBSET = "rededge"
 
 
+def get_vegetation_detector(detector_name, detector_params):
+    if detector_name == "SplitLawin":
+        return SplitLawinVegetationDetector(detector_params["checkpoint"])
+    elif detector_name == "NDVIDetector":
+        return NDVIVegetationDetector(threshold=detector_params["threshold"])
+
+
 class HoughDetectorDict(Enum):
     LINES = "lines"
     CROP_MASK = "crop_mask"
@@ -78,7 +85,7 @@ class NDVIVegetationDetector:
         x = x.cuda()
         ndvi = (x[self.nir_idx] - x[self.red_idx]) / (x[self.nir_idx] + x[self.red_idx])
         return ((ndvi > self.threshold).type(torch.uint8) * 255).unsqueeze(0)
-    
+
     def __repr__(self) -> str:
         return f"NDVI Vegetation Detector with threshold {self.threshold}"
 
@@ -116,7 +123,7 @@ class SplitLawinVegetationDetector:
         seg_class[seg_class == 2] = 255
         seg_class[seg_class == 1] = 255
         return seg_class
-    
+
     def __repr__(self) -> str:
         return f"SplitLawin Vegetation Detector with checkpoint {self.checkpoint_path}"
 
@@ -657,11 +664,13 @@ class HoughCropRowDetector(AbstractHoughCropRowDetector):
                 zero_reason = "No lines thresholded"
                 res = torch.tensor([])
             else:
-                is_uniform, uniform_statistic = self.test_if_uniform(original_lines[:, 1])
+                is_uniform, uniform_statistic = self.test_if_uniform(
+                    original_lines[:, 1]
+                )
                 if is_uniform:
                     zero_reason = "Uniform"
                     res = torch.tensor([])
-                    
+
                 filtered_lines = self.filter_lines(original_lines)
                 thetas_rhos, clusters_index = self.cluster_lines(filtered_lines)
                 medians = get_medians(thetas_rhos, clusters_index)

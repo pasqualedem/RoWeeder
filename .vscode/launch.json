@@ -5,15 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Label",
-            "type": "python",
-            "request": "launch",
-            "program": "main.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "args": ["label", "--root", "../Datasets/WeedMap/0_rotations_processed_003_test/RedEdge", "--checkpoint", "checkpoints/SplitLawin_B1_RedEdge_RGBNIRRE.pth", "--outdir", "dataset/lines/RedEdge"]
-        },
-        {
             "name": "Rotate",
             "type": "python",
             "request": "launch",
@@ -39,6 +30,16 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": ["patchify", "--root", "dataset/ortho/003/composite-png", "--outdir", "dataset/patches/1024/003", "--patch_size", "1024"]
+        },
+
+        {
+            "name": "Label",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["label", "--outdir", "dataset/generated", "--parameters", "dataset/generated/19408754.yaml"]
         },
         {
             "name": "Experiment",

@@ -11,11 +11,15 @@ from ezdl.datasets import WeedMapDataset
 from cc_torch import connected_components_labeling
 from datetime import datetime
 
+import yaml
+from selfweed.data import get_dataset
+
 from selfweed.detector import (
     HoughCropRowDetector,
     HoughDetectorDict,
     SplitLawinVegetationDetector,
     ModifiedHoughCropRowDetector,
+    get_vegetation_detector,
 )
 
 
@@ -62,23 +66,12 @@ def label_from_row(mask, row_image):
 
 
 def out_summary_file(
-    outdir,
-    plant_detector,
-    fixed_theta=None,
-    threshold=150,
-    step_theta=1,
-    step_rho=1,
-    angle_error=3,
-    clustering_tol=2,
-    uniform_significance=10,
-    theta_reduction_threshold=1.00,
+    outfile,
+    parameters
 ):
-    summary_file = os.path.join(outdir, "summary.txt")
-    os.makedirs(outdir, exist_ok=True)
-    with open(summary_file, "w") as f:
-        f.write(
-            f"plant_detector: {str(plant_detector)}\nfixed_theta: {fixed_theta}\nthreshold: {threshold}\nstep_theta: {step_theta}\nstep_rho: {step_rho}\nangle_error: {angle_error}\nclustering_tol: {clustering_tol}\nuniform_significance: {uniform_significance}\ntheta_reduction_threshold: {theta_reduction_threshold}\n"
-        )
+    with open(outfile, "w") as f:
+        # Write parameters to file
+        yaml.dump(parameters, f)
 
 
 def gt_defix(gt):
@@ -86,48 +79,63 @@ def gt_defix(gt):
     return gt
 
 
-def label(
-    root,
+def load_and_label(outdir, param_file, interactive=True):
+    with open(param_file, "r") as f:
+        params = yaml.safe_load(f)
+    now = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
+    param_id = param_file.split("/")[-1].split(".")[0]
+    outsubdir = os.path.join(outdir, f"{now}_{param_id}")
+    for _ in label(outsubdir, **params, interactive=interactive):
+        pass
+
+
+def save_and_label(
     outdir,
-    dataset,
-    plant_detector,
-    threshold=150,
-    step_theta=1,
-    step_rho=1,
-    angle_error=3,
-    clustering_tol=2,
-    uniform_significance=10,
-    theta_reduction_threshold=1.00,
-    fixed_theta=None,
+    dataset_params,
+    plant_detector_params,
+    hough_detector_params,
     interactive=False,
 ):
-    outdir = os.path.join(outdir, datetime.now().strftime("%d-%m-%Y_%H:%M:%S"))
+    now = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
+    hashid = hash(now)
+    hashid_8 = str(hashid)[-8:]
+    outsubdir = os.path.join(outdir, f"{now}_{hashid_8}")
     os.makedirs(outdir, exist_ok=True)
+
     out_summary_file(
-        outdir,
-        threshold=threshold,
-        step_theta=step_theta,
-        step_rho=step_rho,
-        angle_error=angle_error,
-        clustering_tol=clustering_tol,
-        uniform_significance=uniform_significance,
-        theta_reduction_threshold=theta_reduction_threshold,
-        fixed_theta=fixed_theta,
-        plant_detector=plant_detector,
+        f"{outdir}/{hashid_8}.yaml",
+        {
+            "dataset_params": dataset_params,
+            "plant_detector_params": plant_detector_params,
+            "hough_detector_params": hough_detector_params,
+        }
     )
-    channels = ["R", "G", "B", "NIR", "RE"]
-    input_transform = lambda x: x
+    yield from label(
+        outsubdir,
+        dataset_params,
+        plant_detector_params,
+        hough_detector_params,
+        interactive,
+    )
+
+
+def label(
+    outdir,
+    dataset_params,
+    plant_detector_params,
+    hough_detector_params,
+    interactive=False,
+):
+    os.makedirs(outdir, exist_ok=True)
+    
+    plant_detector = get_vegetation_detector(plant_detector_params['name'], plant_detector_params['params'])
     detector = HoughCropRowDetector(
-        threshold=threshold,
-        step_theta=step_theta,
-        step_rho=step_rho,
-        angle_error=angle_error,
-        clustering_tol=clustering_tol,
-        uniform_significance=uniform_significance,
-        theta_reduction_threshold=theta_reduction_threshold,
+        **hough_detector_params,
         crop_detector=plant_detector,
     )
-    for i, (img, target, path) in enumerate(tqdm(dataset)):
+    dataset = get_dataset(**dataset_params)
+    print(len(dataset))
+    for i, (img, target, additional) in enumerate(tqdm(dataset)):
         mask = plant_detector(img)
         result_dict = detector.predict_from_mask(mask)
         lines = result_dict[HoughDetectorDict.LINES]
@@ -139,8 +147,11 @@ def label(
         weed_map = label_from_row(argmask, torch.tensor(line_mask).permute(2, 0, 1)[0])
         weed_map = weed_map.argmax(dim=0)
         weed_map = weed_map.cpu().numpy().astype(np.uint8)
+        path, basename = os.path.split(additional["input_name"])
+        path, gt_folder = os.path.split(path)
+        path, field = os.path.split(path)
         img_out_path = os.path.join(
-            outdir, os.path.basename(path["input_name"])
+            outdir, field, basename
         )
         cv2.imwrite(img_out_path, weed_map)
         if interactive:
