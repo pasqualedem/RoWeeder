@@ -1,37 +1,26 @@
-import itertools
 import os
 from typing import Any, Union, Iterable, Mapping
 
-import functools
-
-import numpy as np
 import torch
 from PIL import Image
 from torchvision.datasets.vision import VisionDataset
 import torchvision.transforms as transforms
 from torchvision.transforms import functional as F
+from logging import getLogger
 
-from ezdl.transforms import \
-    PairRandomCrop, SegOneHot, ToLong, FixValue, Denormalize, PairRandomFlip, squeeze0, \
-    PairFlip, PairFourCrop
 from selfweed.data.stats import STATS
 from sklearn.model_selection import train_test_split
-
-from super_gradients.training import utils as core_utils
-from super_gradients.common.abstractions.abstract_logger import get_logger
-from ezdl.data import DatasetInterface
 
 from selfweed.data import stats
 from selfweed.utils.utils import remove_suffix
 
-logger = get_logger(__name__)
+logger = getLogger(__name__)
 
 
-class SpringWheatDatasetInterface(DatasetInterface):
+class SpringWheatDatasetInterface:
     STATS = stats.STATS
 
     def __init__(self, dataset_params):
-        super(SpringWheatDatasetInterface, self).__init__(dataset_params)
         mean, std = self.get_mean_std()
 
         self.lib_dataset_params = {
@@ -118,8 +107,13 @@ class SpringWheatMaskedDataset(SpringWheatDataset):
                  return_img: bool = True
                  ):
         super().__init__(root, transform, return_path)
-        self.files = list(set([remove_suffix(img, self.MASK_SUFFIX)
-                               for img in self.files if img.endswith(self.MASK_SUFFIX)]))
+        self.files = list(
+            {
+                remove_suffix(img, self.MASK_SUFFIX)
+                for img in self.files
+                if img.endswith(self.MASK_SUFFIX)
+            }
+        )
         self.return_img = return_img
 
     def __getitem__(self, i) -> Any:

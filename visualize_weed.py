@@ -132,7 +132,8 @@ def display_prediction():
         gt,
         num_classes=3,
         average="macro",
-        mdmc_average="global",
+        task="multiclass",
+        multidim_average="global",
     )
     weed_map = weed_map.argmax(dim=0).cpu().numpy().astype(np.uint8)
     weed_map = map_grayscale_to_rgb(
@@ -171,12 +172,11 @@ def display_prediction():
 if __name__ == "__main__":
     st.set_page_config(layout="wide")
     default_roots = {
-        "Old Dataset": "../Datasets/WeedMap/0_rotations_processed_003_test/RedEdge",
-        "New Dataset": "dataset/patches/512/003",
+        "New Dataset": "dataset/patches/512",
     }
 
     with st.sidebar:
-        st.selectbox("Modality", ["Old Dataset", "New Dataset"], key="modality")
+        st.selectbox("Modality", ["New Dataset"], key="modality")
         st.text_input(
             value=default_roots[st.session_state["modality"]],
             key="root",
@@ -209,7 +209,7 @@ if __name__ == "__main__":
         st.text_input(value="", label="img_name", key="img_name")
         st.selectbox(
             "Vegetation Detector",
-            ["SplitLawin", "NDVIDetector"],
+            ["NDVIDetector"],
             key="vegetation_detector",
         )
 

@@ -7,8 +7,6 @@ import cv2
 from torchvision import transforms
 from PIL import Image
 from tqdm import tqdm
-from ezdl.datasets import WeedMapDataset
-from cc_torch import connected_components_labeling
 from datetime import datetime
 
 import yaml
@@ -17,8 +15,6 @@ from selfweed.data import get_dataset
 from selfweed.detector import (
     HoughCropRowDetector,
     HoughDetectorDict,
-    SplitLawinVegetationDetector,
-    ModifiedHoughCropRowDetector,
     get_vegetation_detector,
 )
 
@@ -51,7 +47,8 @@ def get_drawn_img(img, theta_rho, color=(255, 255, 255)):
 
 
 def label_from_row(mask, row_image):
-    conn_components = connected_components_labeling(mask).cpu()
+    conn_components = cv2.connectedComponents(mask.cpu().numpy().astype(np.uint8))[1]
+    conn_components = torch.tensor(conn_components)
     row_crop_intersection = conn_components * row_image.bool()
     crop_values = row_crop_intersection.unique()
     if len(crop_values) == 1:

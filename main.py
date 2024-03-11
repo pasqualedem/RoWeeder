@@ -5,11 +5,10 @@ import click
 import numpy as np
 import pandas as pd
 from PIL import Image
-from clearml import Dataset
 from tqdm import tqdm
 
-from ezdl.utils.grid import make_grid
-from ezdl.utils.utilities import load_yaml
+from selfweed.utils.grid import make_grid
+from selfweed.utils.utils import load_yaml
 
 from selfweed.data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
 from selfweed.labeling import label as label_fn, load_and_label
@@ -101,102 +100,6 @@ def run(parameters):
     from selfweed.experiment.experiment import run as run_single
     run_single(param_path=parameters)
 
-
-def row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, angle_error, clustering_tol):
-
-    crd = ModifiedHoughCropRowDetector(crop_detector="None",
-                          threshold=hough_threshold,
-                          angle_error=angle_error,
-                          clustering_tol=clustering_tol)
-
-    shutil.rmtree(mask_outpath, ignore_errors=True)
-    os.makedirs(mask_outpath, exist_ok=True)
-    mask_suffix = "_mask.png"
-    csv_suffix = "_mask.csv"
-
-    dataset = SpringWheatMaskedDataset(root=inpath, return_path=True, return_img=False, transform=None)
-
-    for img, img_path in tqdm(dataset):
-        width, height = img.shape[1:]
-        fname = os.path.basename(img_path)
-        fname, fext = os.path.splitext(fname)
-        lines, displacement = crd.predict_from_mask(img, return_mean_crop_size=True)
-        mask = np.zeros((width, height), dtype=np.uint8)
-        for theta, rho in lines:
-            mask = get_square_from_lines(mask, theta, rho, displacement, width, height)
-        # Save the lines
-        df = pd.DataFrame(lines.cpu(), columns=["theta", "rho"])
-        df.to_csv(os.path.join(mask_outpath, fname + csv_suffix))
-        # Save the mask
-        Image.fromarray(mask).save(os.path.join(mask_outpath, fname + mask_suffix))
-    version = f"hough_t={hough_threshold}||angle_err={angle_error}||clust_tol={clustering_tol}"
-    manage_clearml_crop_rows(uri, mask_outpath, version)
-
-
-@main.command("crop_mask")
-@click.option("--inpath", default=DATA_ROOT, type=click.STRING)
-@click.option("--mask_outpath", default=DATA_ROOT, type=click.STRING)
-@click.option("--uri", default=None)
-def crop_mask(inpath, mask_outpath, uri):
-    """
-    :param inpath: Base folder of the dataset
-    :param mask_outpath: Folder where to save the masks
-    :param uri: clearml uri for dataset upload
-    """
-    if inpath is None or inpath == '':
-        inpath = Dataset.get(
-            dataset_name="SpringWheatProcessed",
-            dataset_project="SSL"
-            ).get_local_copy()
-
-    crd = ModifiedHoughCropRowDetector()
-
-    shutil.rmtree(mask_outpath, ignore_errors=True)
-    os.makedirs(mask_outpath, exist_ok=True)
-    crop_mask_suffix = "_cropmask.png"
-
-    dataset = SpringWheatDataset(root=inpath, return_path=True, transform=None)
-
-    for img, img_path in tqdm(dataset):
-        fname = os.path.basename(img_path)
-        fname, fext = os.path.splitext(fname)
-        crop_mask = crd.detect_crop(img).cpu().numpy()
-        # Save the crop mask
-        Image.fromarray(crop_mask).save(os.path.join(mask_outpath, fname + crop_mask_suffix))
-    manage_clearml_crop_mask(uri, mask_outpath)
-
-
-def manage_clearml_crop_rows(uri, outpath, version=None):
-    parent = Dataset.get(
-        dataset_name="SpringWheatCropMasks",
-        dataset_project="SSL"
-    )
-    dataset = Dataset.create(
-        dataset_name="SpringWheatCropRows",
-        dataset_project="SSL",
-        dataset_version=version,
-        parent_datasets=[parent.id]
-    )
-    dataset.add_files(path=outpath)
-    dataset.upload(output_url=uri)
-    dataset.finalize()
-
-
-def manage_clearml_crop_mask(uri, outpath, version=None):
-    parent = Dataset.get(
-        dataset_name="SpringWheatProcessed",
-        dataset_project="SSL"
-    )
-    dataset = Dataset.create(
-        dataset_name="SpringWheatCropMasks",
-        dataset_project="SSL",
-        dataset_version=version,
-        parent_datasets=[parent.id]
-    )
-    dataset.add_files(path=outpath)
-    dataset.upload(output_url=uri)
-    dataset.finalize()
-    
     
 @main.command("rotate")
 @click.option("--root", default=DATA_ROOT, type=click.STRING)

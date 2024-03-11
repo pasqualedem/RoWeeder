@@ -2,7 +2,7 @@ import torch
 import torchvision.transforms as T
 
 from selfweed.data.weedmap import WeedMapDataset
-from ezdl.datasets import WeedMapDataset as WeedOldDataset
+# from ezdl.datasets import WeedMapDataset as WeedOldDataset
 
 
 def get_dataloaders(params):
@@ -40,7 +40,7 @@ def get_dataloaders(params):
         
 
 def get_dataset(root, modality, fields):
-    dataclass = WeedOldDataset if modality == "Old Dataset" else WeedMapDataset
+    dataclass = WeedMapDataset
     channels = ["R", "G", "B", "NIR", "RE"]
     input_transform = lambda x: x / 255.0
     

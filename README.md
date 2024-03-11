@@ -11,7 +11,7 @@ For each field (000, 001, 002, 003, 004)
 ```bash
 
 # Rotate the images
-python3 main.py rotate --root dataset/ortho/000 --outdir dataset/rotated_ortho/000 --angle -48 & 
+python3 main.py rotate --root dataset/ortho/000 --outdir dataset/rotated_ortho/000 --angle -46 &
 python3 main.py rotate --root dataset/ortho/001 --outdir dataset/rotated_ortho/001 --angle -48 &
 python3 main.py rotate --root dataset/ortho/002 --outdir dataset/rotated_ortho/002 --angle -48 &
 python3 main.py rotate --root dataset/ortho/003 --outdir dataset/rotated_ortho/003 --angle -48 &

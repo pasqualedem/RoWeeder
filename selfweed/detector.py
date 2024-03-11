@@ -4,9 +4,8 @@ import cv2
 import numpy as np
 import pandas as pd
 import torch
-from cc_torch import connected_components_labeling
-from ezdl.datasets import WeedMapDatasetInterface
-from ezdl.models.lawin import Laweed, SplitLawin
+# from ezdl.datasets import WeedMapDatasetInterface
+# from ezdl.models.lawin import Laweed, SplitLawin
 from torchvision.transforms import Normalize, ToTensor, Compose
 from torch.nn import functional as F
 from selfweed.histogramdd import histogramdd
@@ -27,9 +26,7 @@ SUBSET = "rededge"
 
 
 def get_vegetation_detector(detector_name, detector_params):
-    if detector_name == "SplitLawin":
-        return SplitLawinVegetationDetector(detector_params["checkpoint"])
-    elif detector_name == "NDVIDetector":
+    if detector_name == "NDVIDetector":
         return NDVIVegetationDetector(threshold=detector_params["threshold"])
 
 
@@ -44,27 +41,27 @@ class HoughDetectorDict(Enum):
     UNIFORM_SIGNIFICANCE = "uniform_significance"
 
 
-class LaweedVegetationDetector:
-    def __init__(self):
-        pth = torch.load(LAWEED_PATH)
-        model = Laweed(
-            {
-                "output_channels": 3,
-                "num_classes": 3,
-                "backbone": "MiT-B0",
-                "backbone_pretrained": True,
-            }
-        )
-        weights = {k[7:]: v for k, v in pth["net"].items()}
-        model.load_state_dict(weights)
-        means, stds = WeedMapDatasetInterface.get_mean_std(
-            TRAIN_FOLDERS, LAWEED_CHANNELS, SUBSET
-        )
-        self.transform = Normalize(means, stds)
-        model.eval()
-        model.cuda()
+# class LaweedVegetationDetector:
+#     def __init__(self):
+#         pth = torch.load(LAWEED_PATH)
+#         model = Laweed(
+#             {
+#                 "output_channels": 3,
+#                 "num_classes": 3,
+#                 "backbone": "MiT-B0",
+#                 "backbone_pretrained": True,
+#             }
+#         )
+#         weights = {k[7:]: v for k, v in pth["net"].items()}
+#         model.load_state_dict(weights)
+#         means, stds = WeedMapDatasetInterface.get_mean_std(
+#             TRAIN_FOLDERS, LAWEED_CHANNELS, SUBSET
+#         )
+#         self.transform = Normalize(means, stds)
+#         model.eval()
+#         model.cuda()
 
-        self.model = model
+#         self.model = model
 
     def __call__(self, img):
         img = self.transform(img)
@@ -90,49 +87,47 @@ class NDVIVegetationDetector:
         return f"NDVI Vegetation Detector with threshold {self.threshold}"
 
 
-class SplitLawinVegetationDetector:
-    def __init__(self, checkpoint_path=LAWIN_PATH):
-        self.checkpoint_path = checkpoint_path
-        pth = torch.load(checkpoint_path)
-        model = SplitLawin(
-            {
-                "output_channels": 3,
-                "num_classes": 3,
-                "backbone": "MiT-B1",
-                "side_pretrained": "G",
-                "backbone_pretrained": True,
-                "main_channels": 3,
-                "input_channels": 5,
-            }
-        )
-        weights = {k[7:]: v for k, v in pth["net"].items()}
-        model.load_state_dict(weights)
-        means, stds = WeedMapDatasetInterface.get_mean_std(
-            TRAIN_FOLDERS, LAWIN_CHANNELS, SUBSET
-        )
-        self.transform = Normalize(means, stds)
-        model.eval()
-        model.cuda()
+# class SplitLawinVegetationDetector:
+#     def __init__(self, checkpoint_path=LAWIN_PATH):
+#         self.checkpoint_path = checkpoint_path
+#         pth = torch.load(checkpoint_path)
+#         model = SplitLawin(
+#             {
+#                 "output_channels": 3,
+#                 "num_classes": 3,
+#                 "backbone": "MiT-B1",
+#                 "side_pretrained": "G",
+#                 "backbone_pretrained": True,
+#                 "main_channels": 3,
+#                 "input_channels": 5,
+#             }
+#         )
+#         weights = {k[7:]: v for k, v in pth["net"].items()}
+#         model.load_state_dict(weights)
+#         means, stds = WeedMapDatasetInterface.get_mean_std(
+#             TRAIN_FOLDERS, LAWIN_CHANNELS, SUBSET
+#         )
+#         self.transform = Normalize(means, stds)
+#         model.eval()
+#         model.cuda()
 
-        self.model = model
+#         self.model = model
 
-    def __call__(self, img):
-        img = self.transform(img)
-        seg = self.model(img.unsqueeze(0).cuda())
-        seg_class = seg.argmax(1)
-        seg_class[seg_class == 2] = 255
-        seg_class[seg_class == 1] = 255
-        return seg_class
+#     def __call__(self, img):
+#         img = self.transform(img)
+#         seg = self.model(img.unsqueeze(0).cuda())
+#         seg_class = seg.argmax(1)
+#         seg_class[seg_class == 2] = 255
+#         seg_class[seg_class == 1] = 255
+#         return seg_class
 
-    def __repr__(self) -> str:
-        return f"SplitLawin Vegetation Detector with checkpoint {self.checkpoint_path}"
+#     def __repr__(self) -> str:
+#         return f"SplitLawin Vegetation Detector with checkpoint {self.checkpoint_path}"
 
 
 class CropRowDetector:
     def __init__(self, crop_detector) -> None:
-        self.crop_detector = (
-            LaweedVegetationDetector() if crop_detector is None else crop_detector
-        )
+        self.crop_detector = crop_detector
 
     def detect_crop(self, input_img):
         seg = self.crop_detector(input_img)
@@ -184,7 +179,8 @@ class AbstractHoughCropRowDetector(CropRowDetector):
                 input_img = input_img.squeeze(0)
             else:
                 raise ValueError("Must be 2D tensor")
-        components = connected_components_labeling(input_img)[1:]
+        components = cv2.connectedComponents(input_img.cpu().numpy())[1:]
+        components = torch.tensor(components).cuda()
 
         def get_region(label):
             where_t = torch.where(label == components)
