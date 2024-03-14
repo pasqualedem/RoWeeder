@@ -10,6 +10,7 @@ from torchmetrics.functional import f1_score
 import torch
 import numpy as np
 import pandas as pd
+from selfweed.data.utils import DataKeys
 
 from selfweed.detector import (
     HoughCropRowDetector,
@@ -18,6 +19,7 @@ from selfweed.detector import (
 )
 from selfweed.data import get_dataset
 from selfweed.labeling import get_drawn_img, label_from_row, label, save_and_label
+from selfweed.visualize import map_grayscale_to_rgb
 
 
 def change_state(src, dest):
@@ -59,22 +61,6 @@ def gt_fix(gt):
     return gt
 
 
-def map_grayscale_to_rgb(img, mapping=None):
-    if mapping is None:
-        mapping = {
-            1: (0, 255, 0),  # Value 240 maps to (255, 255, 0) in RGB
-            2: (255, 0, 0),  # Value 254 maps to (255, 0, 0) in RGB
-        }
-    # Initialize an empty RGB image
-    rgb_image = np.zeros((*img.shape, 3), dtype=np.uint8)
-
-    # Map greyscale values to RGB using the defined mapping
-    for greyscale_value, rgb_color in mapping.items():
-        mask = img == greyscale_value
-        rgb_image[mask] = rgb_color
-    return rgb_image
-
-
 def display_prediction():
     st_state = st.session_state
     if st_state["img_name"] != "":
@@ -95,7 +81,9 @@ def display_prediction():
             st_state["i"] = i
 
     col1, col2, col3 = st.columns(3)
-    img, gt, additional = st_state["dataset"][i]
+    data_dict = st_state["dataset"][i]
+    img = data_dict[DataKeys.INPUT]
+    gt = data_dict[DataKeys.TARGET]
 
     mask = st.session_state["labeller"](img)
     st.write(mask.shape)
@@ -141,7 +129,7 @@ def display_prediction():
     ).transpose(2, 0, 1)
     weed_map = get_drawn_img(weed_map, lines, color=(255, 0, 255))
 
-    st.write(additional["input_name"])
+    st.write(data_dict[DataKeys.NAME])
     st.write("f1 score: ", f1)
     st.write("uniform_significance: ", uniform_significance)
     st.write("zero_reason: ", zero_reason)
@@ -285,7 +273,7 @@ if __name__ == "__main__":
                 name=st.session_state["vegetation_detector"],
                 params=dict(
                     checkpoint=st.session_state["checkpoint"],
-                    ndvi_threshold=st.session_state["ndvi_threshold"],
+                    threshold=st.session_state["ndvi_threshold"],
                 ),
             ),
             hough_detector_params=dict(

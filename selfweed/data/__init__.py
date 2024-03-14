@@ -5,38 +5,30 @@ from selfweed.data.weedmap import WeedMapDataset
 # from ezdl.datasets import WeedMapDataset as WeedOldDataset
 
 
-def get_dataloaders(params):
+def get_trainval(dataset_params, dataloader_params):
     transforms  = T.Compose([
-        T.Normalize(mean=params["mean"], std=params["std"]),
+        T.Normalize(mean=dataset_params["mean"], std=dataset_params["std"]),
+    ])
+    target_transforms = T.Compose([
+        T.Lambda(lambda x: x.long()),
     ])
     
 
     train_set = WeedMapDataset( 
-        channels=params["channels"],
-        root=params["root"],
-        gt_folder=params["gt_folder"],
+        channels=dataset_params["channels"],
+        root=dataset_params["root"],
+        gt_folder=dataset_params["gt_folder"],
+        fields=dataset_params["fields"],
         transform=transforms,
+        target_transform=target_transforms,
     )
     
     train_set, val_set = torch.utils.data.random_split(
         train_set,
-        [int(len(train_set) * 0.8), int(len(train_set) * 0.2)],
+        [round(len(train_set) * 0.8), round(len(train_set) * 0.2)],
     )
     
-    train_loader = torch.utils.data.DataLoader(
-        train_set,
-        batch_size=params["batch_size"],
-        shuffle=True,
-        num_workers=params["num_workers"],
-    )
-    
-    val_loader = torch.utils.data.DataLoader(
-        val_set,
-        batch_size=params["batch_size"],
-        shuffle=False,
-        num_workers=params["num_workers"],
-    )
-    return train_loader, val_loader
+    return train_set, val_set
         
 
 def get_dataset(root, modality, fields):

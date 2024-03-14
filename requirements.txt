@@ -11,3 +11,7 @@ tifffile
 ruamel.yaml
 tqdm
 einops
+colorlog
+easydict
+transformers
+optuna

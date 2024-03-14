@@ -39,7 +39,7 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["label", "--outdir", "dataset/generated", "--parameters", "dataset/generated/19408754.yaml"]
+            "args": ["label", "--outdir", "dataset/generated", "--parameters", "dataset/generated/69023956.yaml"]
         },
         {
             "name": "Experiment",

@@ -12,12 +12,10 @@ parameters:
   # Contains the parameters to build the grid.
   # Each value should be a dict or a list
 
-  logger:
-    wandb:
-      offline: [False]
-      entity: [cilabuniba]
+  tracker:
+    output_dir: [wandb]
 
-  train_params:
+  train:
     loss:
       class_weighting: [True]
       components:
@@ -46,8 +44,9 @@ parameters:
 
   dataset: # parameters depending on the class you defined for the dataset
     root: [dataset/patches/512] # path to the dataset
-    gt_folder: [dataset/generated/07-02-2024_12:23:50] # path to the gt folder
+    gt_folder: [dataset/generated/11-03-2024_17:30:26_69023956] # path to the gt folder
     channels: *input_channels
+    fields: [["000", "001", "002", "004"]]
     mean: [[0.485, 0.456, 0.406]]
     std: [[0.229, 0.224, 0.225]]
 

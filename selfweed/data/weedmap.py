@@ -5,6 +5,8 @@ import torchvision
 
 from torch.utils.data import Dataset
 
+from selfweed.data.utils import DataKeys
+
 
 class WeedMapDataset(Dataset):
     def __init__(
@@ -12,7 +14,7 @@ class WeedMapDataset(Dataset):
         root,
         channels,
         fields,
-        gt_folders=None,
+        gt_folder=None,
         transform=None,
         target_transform=None,
         return_path=False,
@@ -26,13 +28,17 @@ class WeedMapDataset(Dataset):
         self.fields = fields
 
         self.channels = channels
-        self.gt_folders = {
-            field: os.path.join(self.root, field, "groundtruth")
-            for field in self.fields
-        } if gt_folders is None else gt_folders
+        if gt_folder is None:
+            self.gt_folders = {
+                field: os.path.join(self.root, field, "groundtruth")
+                for field in self.fields
+            }
+        else:
+            self.gt_folders = {
+                field: os.path.join(gt_folder, field) for field in self.fields
+            }
         lengths = [len(os.listdir(gt_folder)) for gt_folder in self.gt_folders.values()]
         cum_lengths = [0] + list(itertools.accumulate(lengths))
-        print(cum_lengths)
         self.index_to_field = {
             index: (field, start_index)
             for field, start_index, end_index in zip(
@@ -46,7 +52,6 @@ class WeedMapDataset(Dataset):
         return len(self.index_to_field)
 
     def __getitem__(self, i):
-        print(i)
         self.cum += 1
         field, start_index = self.index_to_field[i]
         gt_path = os.path.join(
@@ -70,8 +75,10 @@ class WeedMapDataset(Dataset):
         channels = torch.cat(channels).float()
         channels = self.transform(channels)
 
-        return (
-            (channels, gt, {"input_name": gt_path})
-            if self.return_path
-            else (channels, gt)
-        )
+        data_dict = {
+            DataKeys.INPUT: channels,
+            DataKeys.TARGET: gt,
+        }
+        if self.return_path:
+            data_dict[DataKeys.NAME] = gt_path
+        return data_dict
