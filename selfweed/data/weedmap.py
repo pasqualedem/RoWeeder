@@ -2,13 +2,19 @@ import itertools
 import os
 import torch
 import torchvision
+import cv2
 
 from torch.utils.data import Dataset
 
-from selfweed.data.utils import DataKeys
+from selfweed.data.utils import DataDict, extract_plants, LABELS, pad_patches
 
 
 class WeedMapDataset(Dataset):
+    id2label = {
+        0: "background",
+        1: "crop",
+        2: "weed",
+    }
     def __init__(
         self,
         root,
@@ -37,25 +43,18 @@ class WeedMapDataset(Dataset):
             self.gt_folders = {
                 field: os.path.join(gt_folder, field) for field in self.fields
             }
-        lengths = [len(os.listdir(gt_folder)) for gt_folder in self.gt_folders.values()]
-        cum_lengths = [0] + list(itertools.accumulate(lengths))
-        self.index_to_field = {
-            index: (field, start_index)
-            for field, start_index, end_index in zip(
-                fields, cum_lengths[:-1], cum_lengths[1:]
-            )
-            for index in range(start_index, end_index)
-        }
-        self.cum = 0
+            
+        self.index = [
+            (field, filename) for field in self.fields for filename in os.listdir(self.gt_folders[field])
+        ]
 
     def __len__(self):
-        return len(self.index_to_field)
+        return len(self.index)
 
     def __getitem__(self, i):
-        self.cum += 1
-        field, start_index = self.index_to_field[i]
+        field, filename = self.index[i]
         gt_path = os.path.join(
-            self.gt_folders[field], os.listdir(self.gt_folders[field])[i - start_index]
+            self.gt_folders[field], filename
         )
         gt = torchvision.io.read_image(gt_path)
         gt = gt[[2, 1, 0], ::]
@@ -68,7 +67,7 @@ class WeedMapDataset(Dataset):
                 self.root,
                 field,
                 channel_folder,
-                os.listdir(os.path.join(self.root, field, channel_folder))[i - start_index],
+                filename
             )
             channel = torchvision.io.read_image(channel_path)
             channels.append(channel)
@@ -76,9 +75,42 @@ class WeedMapDataset(Dataset):
         channels = self.transform(channels)
 
         data_dict = {
-            DataKeys.INPUT: channels,
-            DataKeys.TARGET: gt,
+            DataDict.IMAGE: channels,
+            DataDict.TARGET: gt,
         }
         if self.return_path:
-            data_dict[DataKeys.NAME] = gt_path
+            data_dict[DataDict.NAME] = gt_path
         return data_dict
+
+
+class SelfSupervisedWeedMapDataset(WeedMapDataset):
+    def __getitem__(self, i):
+        data_dict = super().__getitem__(i)
+        
+        connected_components = torch.tensor(cv2.connectedComponents(data_dict[DataDict.TARGET].numpy().astype('uint8'))[1])
+        crops_mask = data_dict[DataDict.TARGET] == LABELS.CROP.value
+        crops_mask = connected_components * crops_mask
+        crops_mask = extract_plants(data_dict[DataDict.IMAGE], crops_mask)
+        
+        weeds_mask = data_dict[DataDict.TARGET] == LABELS.WEED.value
+        weeds_mask = connected_components * weeds_mask
+        weeds_mask = extract_plants(data_dict[DataDict.IMAGE], weeds_mask)
+        
+        return {
+            **data_dict,
+            DataDict.CROPS: crops_mask,
+            DataDict.WEEDS: weeds_mask,
+        }
+        
+    def collate_fn(self, batch):
+        crops = [item[DataDict.CROPS] for item in batch]
+        weeds = [item[DataDict.WEEDS] for item in batch]
+        crops = pad_patches(crops)
+        weeds = pad_patches(weeds)
+        return {
+            DataDict.IMAGE: torch.stack([item[DataDict.IMAGE] for item in batch]),
+            DataDict.TARGET: torch.stack([item[DataDict.TARGET] for item in batch]),
+            DataDict.CROPS: crops,
+            DataDict.WEEDS: weeds,
+        }
+        

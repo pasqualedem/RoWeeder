@@ -4,11 +4,11 @@ import copy
 import gc
 import os
 import uuid
-from colorlog import getLogger
 import pandas as pd
 from typing import Mapping
 from easydict import EasyDict
 
+from selfweed.utils.logger import get_logger
 from selfweed.experiment.run import Run
 from selfweed.experiment.parallel import ParallelRun
 from selfweed.utils.utils import get_timestamp, load_yaml, nested_dict_update, update_collection
@@ -16,7 +16,7 @@ from selfweed.utils.grid import linearize, linearized_to_string, make_grid
 from selfweed.utils.optuna import Optunizer
 
 
-logger = getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class GridSummary:
@@ -198,17 +198,19 @@ class Experimenter:
                     )
                     run = Run()
                     run.init({"experiment": {**self.exp_settings}, **params})
-                    run._prep_for_train()
+                    run._prep_for_training()
                     metric = run.launch()
                     print(self.EXP_FINISH_SEP)
                     if self.exp_settings.search == "optim":
                         self.grids[i].report_result(metric)
+                    yield metric
                     gc.collect()
                 except Exception as ex:
                     logger.error(f"Experiment {i} failed with error {ex}")
                     print(self.EXP_CRASHED_SEP)
                     if not self.exp_settings.continue_with_errors:
                         raise ex
+                    yield None
 
     def execute_runs(self, only_create=False):
         for _ in self.execute_runs_generator():

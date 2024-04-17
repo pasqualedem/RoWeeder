@@ -80,3 +80,7 @@ class RowLoss(nn.Module):
         logits_loss = self.logits_loss(result.logits, target)
         prompt_loss = self.contrastive_loss(result)
         return logits_loss + prompt_loss
+
+
+def build_loss(params):
+    return RowLoss(**params)

@@ -11,7 +11,7 @@ from datetime import datetime
 
 import yaml
 from selfweed.data import get_dataset
-from selfweed.data.utils import DataKeys
+from selfweed.data.utils import DataDict
 
 from selfweed.detector import (
     HoughCropRowDetector,
@@ -134,8 +134,8 @@ def label(
     )
     dataset = get_dataset(**dataset_params)
     for i, (data_dict) in enumerate(tqdm(dataset)):
-        img = data_dict[DataKeys.INPUT]
-        gt = data_dict[DataKeys.TARGET]
+        img = data_dict[DataDict.IMAGE]
+        gt = data_dict[DataDict.TARGET]
         mask = plant_detector(img)
         result_dict = detector.predict_from_mask(mask)
         lines = result_dict[HoughDetectorDict.LINES]
@@ -152,7 +152,7 @@ def label(
         ).transpose(2, 0, 1)
         # RGB to BGR
         weed_map = weed_map[[2, 1, 0], ::] 
-        path, basename = os.path.split(data_dict[DataKeys.NAME])
+        path, basename = os.path.split(data_dict[DataDict.NAME])
         path, gt_folder = os.path.split(path)
         path, field = os.path.split(path)
         os.makedirs(os.path.join(outdir, field), exist_ok=True)

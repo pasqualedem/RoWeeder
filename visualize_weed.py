@@ -10,7 +10,7 @@ from torchmetrics.functional import f1_score
 import torch
 import numpy as np
 import pandas as pd
-from selfweed.data.utils import DataKeys
+from selfweed.data.utils import DataDict
 
 from selfweed.detector import (
     HoughCropRowDetector,
@@ -82,8 +82,8 @@ def display_prediction():
 
     col1, col2, col3 = st.columns(3)
     data_dict = st_state["dataset"][i]
-    img = data_dict[DataKeys.INPUT]
-    gt = data_dict[DataKeys.TARGET]
+    img = data_dict[DataDict.IMAGE]
+    gt = data_dict[DataDict.TARGET]
 
     mask = st.session_state["labeller"](img)
     st.write(mask.shape)
@@ -129,7 +129,7 @@ def display_prediction():
     ).transpose(2, 0, 1)
     weed_map = get_drawn_img(weed_map, lines, color=(255, 0, 255))
 
-    st.write(data_dict[DataKeys.NAME])
+    st.write(data_dict[DataDict.NAME])
     st.write("f1 score: ", f1)
     st.write("uniform_significance: ", uniform_significance)
     st.write("zero_reason: ", zero_reason)
