@@ -263,7 +263,7 @@ class Run:
 
     def _forward(
         self,
-        input_dict: dict,
+        input_dict: DataDict,
         epoch: int,
         batch_idx: int,
     ):
@@ -353,8 +353,6 @@ class Run:
 
         loss_avg = RunningAverage()
         loss_normalizer = 1
-        tot_steps = 0
-
         # tqdm stuff
         bar = tqdm(
             enumerate(self.train_loader),
@@ -364,7 +362,8 @@ class Run:
         )
         metric_values = None
 
-        for batch_idx, batch_dict in bar:
+        for tot_steps, (batch_idx, batch_dict) in enumerate(bar):
+            batch_dict: DataDict
             self.optimizer.zero_grad()
             result_dict = self._forward(batch_dict, epoch, batch_idx)
             loss = self._backward(batch_idx, batch_dict, result_dict, loss_normalizer)
@@ -378,7 +377,7 @@ class Run:
 
             metric_values = self._update_train_metrics(
                 preds,
-                batch_dict[DataDict.TARGET],
+                batch_dict.target,
                 tot_steps,
                 batch_idx,
             )
@@ -389,14 +388,13 @@ class Run:
                     "lr": self._get_lr(),
                 }
             )
-            tot_steps += 1
             self.global_train_step += 1
             self.tracker.save_experiment_timed()
 
-        logger.info(f"Waiting for everyone")
+        logger.info("Waiting for everyone")
         self.accelerator.wait_for_everyone()
         logger.info(f"Finished Epoch {epoch}")
-        logger.info(f"Metrics")
+        logger.info("Metrics")
         metric_dict = {
             **self.train_metrics.compute(),
             "avg_loss": loss_avg.compute(),
@@ -431,13 +429,13 @@ class Run:
         with torch.no_grad():
             for batch_idx, batch_dict in bar:
                 result_dict = self.model(batch_dict)
-                outputs = result_dict[ResultDict.LOGITS]
+                outputs = result_dict.logits
                 preds = outputs.argmax(dim=1)
 
                 metrics_value = self._update_val_metrics(
-                    preds, batch_dict[DataDict.TARGET], tot_steps
+                    preds, batch_dict.target, tot_steps
                 )
-                loss = result_dict["loss"]
+                loss = result_dict.loss
 
                 avg_loss.update(loss.item())
                 bar.set_postfix(

@@ -13,10 +13,11 @@ import torch
 import wandb
 from PIL import Image
 from matplotlib import pyplot as plt
+from selfweed.data.utils import DataDict
 from selfweed.tracker.abstract_tracker import AbstractLogger, main_process_only
 
 from accelerate import Accelerator
-from selfweed.utils.utils import write_yaml
+from selfweed.utils.utils import log_every_n, write_yaml
 from selfweed.utils.logger import get_logger
 
 
@@ -416,6 +417,53 @@ class WandBLogger(AbstractLogger):
     def add_image_sequence(self, name):
         wandb.log({f"{self.context}_{name}": self.sequences[name]})
         del self.sequences[name]
+        
+    @main_process_only
+    def log_prediction(
+        self,
+        batch_idx: int,
+        input_dict: DataDict,
+        gt: torch.Tensor,
+        pred: torch.Tensor,
+        input_shape,
+        id2classes: dict,
+        dataset_name,
+    ):
+        if not log_every_n(batch_idx, self.prefix_frequency_dict["test"]):
+            return
+        dims = input_dict["dims"]
+        images = input_dict["images"][:, 0]
+
+        for b in range(gt.shape[0]):
+            image = get_image(take_image(images[b], dims[b], input_shape=input_shape))
+
+            sample_gt = gt[b, : dims[b, 0], : dims[b, 1]].detach().cpu().numpy()
+
+            sample_pred = pred[b, :, : dims[b, 0], : dims[b, 1]]
+            sample_pred = torch.argmax(sample_pred, dim=0).detach().cpu().numpy()
+
+            wandb_image = wandb.Image(
+                image,
+                masks={
+                    "ground_truth": {
+                        "mask_data": sample_gt,
+                        "class_labels": id2classes,
+                    },
+                    "prediction": {
+                        "mask_data": sample_pred,
+                        "class_labels": id2classes,
+                    },
+                },
+                classes=[
+                    {"id": c, "name": name} for c, name in id2classes.items()
+                ],
+            )
+
+            self.add_image_to_sequence(
+                dataset_name,
+                f"image_{batch_idx}_sample_{b}",
+                wandb_image,
+            )
 
     @main_process_only
     def log_asset_folder(self, folder, base_path=None, step=None):

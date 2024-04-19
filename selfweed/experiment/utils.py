@@ -1,5 +1,6 @@
 from enum import Enum
 import gc
+import inspect
 import contextlib
 from copy import deepcopy
 
@@ -124,8 +125,9 @@ class WrapperModule(torch.nn.Module):
         self.loss = loss
 
     def forward(self, input_dict):
-        gt = input_dict[DataDict.TARGET]
-        input_dict = {k: v for k, v in input_dict.items() if k != DataDict.TARGET}
+        gt = input_dict.target
+        model_args = inspect.signature(self.model.forward).parameters 
+        input_dict = {k: v for k, v in input_dict.items() if k in model_args}
         result_dict = self.model(**input_dict)
         loss = self.loss(result_dict.logits, gt)
         return ModelOutput(loss=loss, logits=result_dict.logits, scores=result_dict.scores)

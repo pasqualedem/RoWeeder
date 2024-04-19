@@ -1,4 +1,5 @@
 from enum import Enum
+from easydict import EasyDict
 import os
 import cv2
 import time
@@ -232,11 +233,9 @@ class RunningAverage:
         return self.accumulator / self.steps
 
 
-class ResultDict(StrEnum):
-    CLASS_EMBS = "class_embeddings"
-    LOGITS = "logits"
-    EXAMPLES_CLASS_EMBS = "class_examples_embeddings"
-    LOSS = "loss"
+class ResultDict(EasyDict):
+    LOGITS: torch.Tensor
+    LOSS = torch.Tensor
 
 
 def previous_iterator(some_iterable, return_first=True):

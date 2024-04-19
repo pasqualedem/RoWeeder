@@ -17,8 +17,7 @@ parameters:
     ignored_files: ["*.bin,*.safetensors"]
 
   train:
-    # substitution_threshold: [0.1] # threshold
-    max_epochs: [2]
+    max_epochs: [1]
     compile: [False]
     initial_lr: [0.00001]
     optimizer: [AdamW]

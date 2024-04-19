@@ -1,15 +1,12 @@
-from collections import OrderedDict
-from dataclasses import dataclass
+from easydict import EasyDict
 import torch
 
-@dataclass
-class RowWeederModelOutput(OrderedDict):
+class RowWeederModelOutput(EasyDict):
     logits: torch.Tensor
     scores: torch.Tensor
     
 
-@dataclass
-class ModelOutput(OrderedDict):
+class ModelOutput(EasyDict):
     loss: torch.Tensor
     logits: torch.Tensor
     scores: torch.Tensor

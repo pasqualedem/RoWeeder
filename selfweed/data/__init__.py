@@ -28,7 +28,7 @@ def get_dataloaders(dataset_params, dataloader_params, seed=42):
         transform=transforms,
         target_transform=target_transforms,
     )
-    val_set = SelfSupervisedWeedMapDataset(
+    val_set = WeedMapDataset(
         channels=dataset_params["channels"],
         root=dataset_params["root"],
         gt_folder=dataset_params["gt_folder"],
@@ -39,8 +39,8 @@ def get_dataloaders(dataset_params, dataloader_params, seed=42):
     index = train_set.index
 
     train_index, val_index = train_test_split(index, test_size=0.2, random_state=seed)
-    train_set.index_to_field = train_index
-    val_set.index_to_field = val_index
+    train_set.index = train_index
+    val_set.index = val_index
 
     train_loader = torch.utils.data.DataLoader(
         train_set,
@@ -54,7 +54,6 @@ def get_dataloaders(dataset_params, dataloader_params, seed=42):
         batch_size=dataloader_params["batch_size"],
         shuffle=False,
         num_workers=dataloader_params["num_workers"],
-        collate_fn=val_set.collate_fn,
     )
     test_loader = get_testloader(dataset_params, dataloader_params)
 

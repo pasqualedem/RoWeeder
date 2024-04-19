@@ -1,14 +1,16 @@
+from easydict import EasyDict
 from enum import Enum, StrEnum
 
 import torch
 
-class DataDict(StrEnum):
-    IMAGE: str = 'image'
-    TARGET: str = 'target'
-    NAME: str = 'name'
-    
-    CROPS: str = 'crops'
-    WEEDS: str = 'weeds'
+
+class DataDict(EasyDict):
+    image: torch.tensor
+    target: torch.tensor
+    name: str
+    crops: torch.tensor
+    weeds: torch.tensor
+
 
 class LABELS(Enum):
     BACKGROUND: int = 0

@@ -78,6 +78,8 @@ class RowWeeder(nn.Module):
         self.decoder = nn.ModuleList(decoder_layers)
 
     def _encode_plants(self, plants):
+        if plants is None:
+            return None
         plants, flags = plants
         b = plants.shape[0]
         if flags.sum() == 0:
@@ -150,7 +152,7 @@ class RowWeeder(nn.Module):
                 param.requires_grad = False
         return filter(lambda p: p.requires_grad, self.parameters())
 
-    def forward(self, image, crops, weeds):
+    def forward(self, image, crops=None, weeds=None):
         B, _, H, W = image.shape
         features = self.encoder(
             image, output_hidden_states=True

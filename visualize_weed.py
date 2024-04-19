@@ -82,8 +82,8 @@ def display_prediction():
 
     col1, col2, col3 = st.columns(3)
     data_dict = st_state["dataset"][i]
-    img = data_dict[DataDict.IMAGE]
-    gt = data_dict[DataDict.TARGET]
+    img = data_dict[DataDict.image]
+    gt = data_dict[DataDict.target]
 
     mask = st.session_state["labeller"](img)
     st.write(mask.shape)
@@ -129,7 +129,7 @@ def display_prediction():
     ).transpose(2, 0, 1)
     weed_map = get_drawn_img(weed_map, lines, color=(255, 0, 255))
 
-    st.write(data_dict[DataDict.NAME])
+    st.write(data_dict[DataDict.name])
     st.write("f1 score: ", f1)
     st.write("uniform_significance: ", uniform_significance)
     st.write("zero_reason: ", zero_reason)
