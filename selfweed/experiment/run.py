@@ -283,8 +283,7 @@ class Run:
         return outputs
 
     def _backward(self, batch_idx, input_dict, outputs, loss_normalizer):
-        # loss_dict = compose_loss_input(input_dict, outputs)
-        loss = outputs["loss"] / loss_normalizer
+        loss = outputs.loss / loss_normalizer
         self.accelerator.backward(loss)
         check_nan(
             self.model,
@@ -369,7 +368,7 @@ class Run:
             self.optimizer.zero_grad()
             result_dict = self._forward(batch_dict, epoch, batch_idx)
             loss = self._backward(batch_idx, batch_dict, result_dict, loss_normalizer)
-            outputs = result_dict[ResultDict.LOGITS]
+            outputs = result_dict.logits
             preds = outputs.argmax(dim=1)
             self.optimizer.step()
             self._scheduler_step(SchedulerStepMoment.BATCH)

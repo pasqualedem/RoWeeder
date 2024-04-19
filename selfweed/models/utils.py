@@ -1,7 +1,15 @@
+from collections import OrderedDict
+from dataclasses import dataclass
 import torch
-from transformers.utils import ModelOutput
 
+@dataclass
+class RowWeederModelOutput(OrderedDict):
+    logits: torch.Tensor
+    scores: torch.Tensor
+    
 
-class RowWeederModelOutput(ModelOutput):
+@dataclass
+class ModelOutput(OrderedDict):
+    loss: torch.Tensor
     logits: torch.Tensor
     scores: torch.Tensor

@@ -84,6 +84,9 @@ class WeedMapDataset(Dataset):
 
 
 class SelfSupervisedWeedMapDataset(WeedMapDataset):
+    def __init__(self, root, channels, fields, gt_folder=None, transform=None, target_transform=None, return_path=False, max_plants=10):
+        super().__init__(root, channels, fields, gt_folder, transform, target_transform, return_path)
+        self.max_plants = max_plants
     def __getitem__(self, i):
         data_dict = super().__getitem__(i)
         
@@ -91,10 +94,18 @@ class SelfSupervisedWeedMapDataset(WeedMapDataset):
         crops_mask = data_dict[DataDict.TARGET] == LABELS.CROP.value
         crops_mask = connected_components * crops_mask
         crops_mask = extract_plants(data_dict[DataDict.IMAGE], crops_mask)
+        if crops_mask.shape[0] > self.max_plants:
+            # Get self.max_plants random crops
+            indices = torch.randperm(crops_mask.shape[0])[:self.max_plants]
+            crops_mask = crops_mask[indices]
         
         weeds_mask = data_dict[DataDict.TARGET] == LABELS.WEED.value
         weeds_mask = connected_components * weeds_mask
         weeds_mask = extract_plants(data_dict[DataDict.IMAGE], weeds_mask)
+        if weeds_mask.shape[0] > self.max_plants:
+            # Get self.max_plants random weeds
+            indices = torch.randperm(weeds_mask.shape[0])[:self.max_plants]
+            weeds_mask = weeds_mask[indices]
         
         return {
             **data_dict,
