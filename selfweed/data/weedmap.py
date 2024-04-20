@@ -10,7 +10,7 @@ from selfweed.data.utils import DataDict, extract_plants, LABELS, pad_patches
 
 
 class WeedMapDataset(Dataset):
-    id2label = {
+    id2class = {
         0: "background",
         1: "crop",
         2: "weed",

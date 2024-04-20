@@ -2,7 +2,9 @@ import os
 import time
 from PIL import Image
 from accelerate import Accelerator
+import torch
 
+from selfweed.data.utils import DataDict
 from selfweed.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -86,6 +88,17 @@ class AbstractLogger:
         pass
     
     def log_asset_folder(self, path):
+        raise NotImplementedError
+    
+    def log_prediction(
+        self,
+        batch_idx: int,
+        images: torch.tensor,
+        gt: torch.Tensor,
+        pred: torch.Tensor,
+        id2class: dict,
+        phase: str,
+    ):
         raise NotImplementedError
     
     def train(self):

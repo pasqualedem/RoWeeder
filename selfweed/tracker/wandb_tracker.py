@@ -422,25 +422,19 @@ class WandBLogger(AbstractLogger):
     def log_prediction(
         self,
         batch_idx: int,
-        input_dict: DataDict,
+        images: DataDict,
         gt: torch.Tensor,
         pred: torch.Tensor,
-        input_shape,
         id2classes: dict,
-        dataset_name,
+        phase: str,
     ):
-        if not log_every_n(batch_idx, self.prefix_frequency_dict["test"]):
+        if not log_every_n(batch_idx, self.prefix_frequency_dict[phase]):
             return
-        dims = input_dict["dims"]
-        images = input_dict["images"][:, 0]
 
         for b in range(gt.shape[0]):
-            image = get_image(take_image(images[b], dims[b], input_shape=input_shape))
-
-            sample_gt = gt[b, : dims[b, 0], : dims[b, 1]].detach().cpu().numpy()
-
-            sample_pred = pred[b, :, : dims[b, 0], : dims[b, 1]]
-            sample_pred = torch.argmax(sample_pred, dim=0).detach().cpu().numpy()
+            image = images[b].permute(1, 2, 0).detach().cpu().numpy()
+            sample_gt = gt[b].detach().cpu().numpy()
+            sample_pred = pred[b].detach().cpu().numpy()
 
             wandb_image = wandb.Image(
                 image,
@@ -460,7 +454,7 @@ class WandBLogger(AbstractLogger):
             )
 
             self.add_image_to_sequence(
-                dataset_name,
+                f"{phase}_predictions",
                 f"image_{batch_idx}_sample_{b}",
                 wandb_image,
             )

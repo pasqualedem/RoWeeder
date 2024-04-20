@@ -91,7 +91,7 @@ class Run:
         self.tracker = get_experiment_tracker(self.accelerator, self.params)
         self.url = self.tracker.url
         self.name = self.tracker.name
-        self.train_loader, self.val_loader, self.test_loader = get_dataloaders(
+        self.train_loader, self.val_loader, self.test_loader, self.deprocess = get_dataloaders(
             self.dataset_params,
             self.dataloader_params,
         )
@@ -124,7 +124,7 @@ class Run:
         else:
             params = self.model.get_learnable_params(self.train_params)
         self.optimizer = AdamW(
-            self.model.parameters(),
+            params,
             lr=self.train_params["initial_lr"],
         )
 
@@ -425,7 +425,7 @@ class Run:
             desc=desc,
             disable=not self.accelerator.is_local_main_process,
         )
-
+        self.tracker.create_image_sequence(f"{phase}_predictions")
         with torch.no_grad():
             for batch_idx, batch_dict in bar:
                 result_dict = self.model(batch_dict)
@@ -444,6 +444,14 @@ class Run:
                         "loss": loss.item(),
                     }
                 )
+                self.tracker.log_prediction(
+                    batch_idx=batch_idx,
+                    images=self.deprocess(batch_dict.image),
+                    gt=batch_dict.target,
+                    pred=preds,
+                    id2classes=dataloader.dataset.id2class,
+                    phase=phase,
+                )
                 
                 self.global_val_step += 1
                 
@@ -456,6 +464,7 @@ class Run:
                 metrics=metrics_dict,
                 epoch=epoch,
             )
+        self.tracker.add_image_sequence(f"{phase}_predictions")
         self.accelerator.wait_for_everyone()
 
         metrics_value = self.val_metrics.compute()

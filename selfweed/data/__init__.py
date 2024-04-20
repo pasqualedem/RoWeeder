@@ -56,8 +56,17 @@ def get_dataloaders(dataset_params, dataloader_params, seed=42):
         num_workers=dataloader_params["num_workers"],
     )
     test_loader = get_testloader(dataset_params, dataloader_params)
+    
+    deprocess = T.Compose(
+        [
+            T.Normalize(
+                mean=[-m / s for m, s in zip(dataset_params["mean"], dataset_params["std"])],
+                std=[1 / s for s in dataset_params["std"]],
+            ),
+        ]
+    )
 
-    return train_loader, val_loader, test_loader
+    return train_loader, val_loader, test_loader, deprocess
 
 
 def get_testloader(dataset_params, dataloader_params):

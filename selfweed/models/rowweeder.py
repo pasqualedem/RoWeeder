@@ -150,7 +150,8 @@ class RowWeeder(nn.Module):
         if train_params.get("freeze_encoder", False):
             for param in self.encoder.parameters():
                 param.requires_grad = False
-        return filter(lambda p: p.requires_grad, self.parameters())
+        params = filter(lambda p: p.requires_grad, self.parameters())
+        return [{"params": params}]
 
     def forward(self, image, crops=None, weeds=None):
         B, _, H, W = image.shape
