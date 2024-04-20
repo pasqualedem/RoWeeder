@@ -92,11 +92,11 @@ class RowWeeder(nn.Module):
             if H < W:
                 H_W_ratio = W / H
                 W = int(self.min_plant_size * H_W_ratio)
-                plants = F.interpolate(plants, size=(self.min_plant_size, W))
+                plants = F.interpolate(plants, size=(self.min_plant_size, W), mode="bilinear")
             else:
                 W_H_ratio = H / W
                 H = int(self.min_plant_size * W_H_ratio)
-                plants = F.interpolate(plants, size=(H, self.min_plant_size))
+                plants = F.interpolate(plants, size=(H, self.min_plant_size), mode="bilinear")
         
         plants_pyramid_features = []
         plants_features = plants
@@ -183,7 +183,7 @@ class RowWeeder(nn.Module):
         H4, W4 = features[0].shape[-2:]
         logits = []
         for feature, cropweed_embedding in zip(features, cropweed_embeddings):
-            feature = F.interpolate(feature, size=(H4, W4))
+            feature = F.interpolate(feature, size=(H4, W4), mode="bilinear")
             cropweed_embedding = rearrange(cropweed_embedding, "b e c -> b c e")
             feature = rearrange(feature, "b c h w -> b (h w) c")
             feature = feature @ cropweed_embedding
@@ -192,7 +192,7 @@ class RowWeeder(nn.Module):
         logits = torch.stack(logits, dim=1).mean(dim=1)
         background_logits = self._decode_background(features)
         logits = torch.cat([logits, background_logits], dim=1)
-        logits = F.interpolate(logits, size=(H, W))
+        logits = F.interpolate(logits, size=(H, W), mode="bilinear")
         return RowWeederModelOutput(logits=logits, scores=score_matrix)
 
 
