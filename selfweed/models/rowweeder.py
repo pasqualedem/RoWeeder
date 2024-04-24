@@ -116,28 +116,23 @@ class RowWeeder(nn.Module):
         )
         if crop_features is not None:
             normalized_crop_features = normalize(crop_features[i], p=2, dim=-1)
+            normalized_crop_features = rearrange(normalized_crop_features, "b n c -> (b n) c")
             crop_scores = normalized_crop_features @ normalized_crops_embeddings.T
-            crop_scores = crop_scores.mean(dim=1)
             neg_crop_scores = normalized_crop_features @ normalized_weed_embeddings.T
-            neg_crop_scores = neg_crop_scores.mean(dim=1)
+            crop_scores = torch.stack([crop_scores, neg_crop_scores], dim=1)
         else:
-            crop_scores = torch.zeros(batch_size, 1, device=device)
-            neg_crop_scores = torch.zeros(batch_size, 1, device=device)
+            crop_scores = torch.ones(batch_size, 2, 0, device=device)
 
         if weed_features is not None:
             normalized_weed_features = normalize(weed_features[i], p=2, dim=-1)
+            normalized_weed_features = rearrange(normalized_weed_features, "b n c -> (b n) c")
             weed_scores = normalized_weed_features @ normalized_weed_embeddings.T
-            weed_scores = weed_scores.mean(dim=1)
             neg_weed_scores = normalized_weed_features @ normalized_crops_embeddings.T
-            neg_weed_scores = neg_weed_scores.mean(dim=1)
+            weed_scores = torch.stack([weed_scores, neg_weed_scores], dim=1)
         else:
-            weed_scores = torch.zeros(batch_size, 1, device=device)
-            neg_weed_scores = torch.zeros(batch_size, 1, device=device)
+            weed_scores = torch.ones(batch_size, 2, 0, device=device)
 
-        score_matrix = torch.stack(
-            [crop_scores, weed_scores, neg_crop_scores, neg_weed_scores], dim=1
-        )
-        return rearrange(score_matrix, "b (r c) 1 -> b r c", r=2, c=2)
+        return [crop_scores, weed_scores]
     
     def _decode_background(self, features):
         features = features[::-1]
@@ -161,10 +156,10 @@ class RowWeeder(nn.Module):
 
         crop_features = self._encode_plants(crops)  # (B x N, C) for each layer
         weed_features = self._encode_plants(weeds)  # (B x N, C) for each layer
-        score_matrix = torch.stack([
+        contrastive_scores = [
             self._get_scores(crop_features, weed_features, i, B, image.device)
             for i in range(len(self.embedding_dims))
-        ], dim=1).mean(dim=1)
+        ]
 
         cropweed_embeddings = [
             torch.cat(
@@ -193,7 +188,7 @@ class RowWeeder(nn.Module):
         background_logits = self._decode_background(features)
         logits = torch.cat([logits, background_logits], dim=1)
         logits = F.interpolate(logits, size=(H, W), mode="bilinear")
-        return RowWeederModelOutput(logits=logits, scores=score_matrix)
+        return RowWeederModelOutput(logits=logits, scores=contrastive_scores)
 
 
 class CropWeedAttention(nn.Module):

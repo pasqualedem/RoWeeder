@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from einops import repeat
 
@@ -18,14 +19,27 @@ class ContrastiveLoss(nn.Module):
         Arguments:
             scores (torch.Tensor): B x 4 score matrix
         """
-        B, C, R = scores.shape
-        scores = scores * torch.exp(self.t_prime) + self.bias
+        scores = [[score * torch.exp(self.t_prime) for score in score_stage] for score_stage in scores]
+        stage_losses = []
         
-        contrastive_matrix = torch.eye(C, device=scores.device)
-        contrastive_matrix = 2 * contrastive_matrix - 1
-        contrastive_matrix = repeat(contrastive_matrix, "r c -> b r c", b=B)
-        loss = -torch.log(torch.sigmoid(scores * contrastive_matrix))
-        return loss.sum() / B
+        for score_stage in scores:
+            crop_logits, weed_logits = score_stage
+            crop_batch_size = crop_logits.shape[0]
+            weed_batch_size = weed_logits.shape[0]
+            if crop_logits.numel():
+                crop_labels = torch.stack([torch.ones_like(crop_logits[:, 0]), torch.zeros_like(crop_logits[:, 1])], dim=1)
+                crop_loss = F.binary_cross_entropy_with_logits(crop_logits, crop_labels) / crop_batch_size
+            else:
+                crop_loss = torch.tensor(0.0)
+            
+            if weed_logits.numel():
+                weed_labels = torch.stack([torch.zeros_like(weed_logits[:, 0]), torch.ones_like(weed_logits[:, 1])], dim=1)
+                weed_loss = F.binary_cross_entropy_with_logits(weed_logits, weed_labels) / weed_batch_size
+            else:
+                weed_loss = torch.tensor(0.0)
+            stage_losses.append(crop_loss + weed_loss)
+            
+        return sum(stage_losses) / len(stage_losses)
 
         
         
