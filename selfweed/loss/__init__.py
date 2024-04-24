@@ -3,13 +3,14 @@ import torch
 
 from selfweed.models.utils import RowWeederModelOutput
 
-from .focal import FocalLoss
+from .focal import FocalLoss, PlantLoss
 from .contrastive import ContrastiveLoss
 from .utils import get_weight_matrix_from_labels
 
 
 LOGITS_LOSSES = {
     "focal": FocalLoss,
+    "plant": PlantLoss
 }
 
 EMBEDDING_LOSSES = {

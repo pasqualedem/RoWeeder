@@ -161,10 +161,10 @@ class RowWeeder(nn.Module):
 
         crop_features = self._encode_plants(crops)  # (B x N, C) for each layer
         weed_features = self._encode_plants(weeds)  # (B x N, C) for each layer
-        score_matrix = [
+        score_matrix = torch.stack([
             self._get_scores(crop_features, weed_features, i, B, image.device)
             for i in range(len(self.embedding_dims))
-        ]
+        ], dim=1).mean(dim=1)
 
         cropweed_embeddings = [
             torch.cat(

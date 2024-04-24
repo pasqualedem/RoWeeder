@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 
-from torch.nn.functional import normalize
-from einops import rearrange
+from einops import repeat
 
 
 class ContrastiveLoss(nn.Module):
@@ -19,17 +18,14 @@ class ContrastiveLoss(nn.Module):
         Arguments:
             scores (torch.Tensor): B x 4 score matrix
         """
-        B = scores.shape[0]
-        
-        class_embeddings = rearrange(class_embeddings, "b m c d -> b (m c) d")
-        class_embeddings = normalize(class_embeddings, p=2, dim=-1)
-        dot_products = class_embeddings @ rearrange(class_embeddings, " b c d -> b d c")
+        B, C, R = scores.shape
         scores = scores * torch.exp(self.t_prime) + self.bias
         
-        contrastive_matrix = torch.eye(4, device=class_embeddings.device)
+        contrastive_matrix = torch.eye(C, device=scores.device)
         contrastive_matrix = 2 * contrastive_matrix - 1
-        loss = -torch.log(torch.sigmoid(dot_products * contrastive_matrix))
-        return loss / B
+        contrastive_matrix = repeat(contrastive_matrix, "r c -> b r c", b=B)
+        loss = -torch.log(torch.sigmoid(scores * contrastive_matrix))
+        return loss.sum() / B
 
         
         

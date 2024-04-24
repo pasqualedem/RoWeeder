@@ -19,25 +19,25 @@ parameters:
     test_image_log_frequency: [10]
 
   train:
-    max_epochs: [10]
+    max_epochs: [15]
     compile: [False]
     initial_lr: [0.00001]
     optimizer: [AdamW]
-    scheduler:
-      type: [reduce_lr_on_plateau]
-      step_moment: [epoch]
-      patience: [0]
+    # scheduler:
+    #   type: [reduce_lr_on_plateau]
+    #   step_moment: [epoch]
+    #   patience: [0]
     watch_metric: [loss]
-    freeze_backbone: [True]
+    freeze_backbone: [False]
     check_nan: [1] # check for nan every n batches
 
   loss:
     class_weighting: [True]
     components:
       - focal:
-          weight: 0.5
-        contrastive:
-          weight: 0.475
+          weight: 1.0
+        # contrastive:
+        #   weight: 0.475
 
   model:
     name: [rw_segformer] # path to model class or model name contained in EzDL or super-gradients

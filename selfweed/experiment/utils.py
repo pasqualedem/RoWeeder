@@ -129,7 +129,7 @@ class WrapperModule(torch.nn.Module):
         model_args = inspect.signature(self.model.forward).parameters 
         input_dict = {k: v for k, v in input_dict.items() if k in model_args}
         result_dict = self.model(**input_dict)
-        loss = self.loss(result_dict.logits, gt)
+        loss = self.loss(result_dict, gt)
         return ModelOutput(loss=loss, logits=result_dict.logits, scores=result_dict.scores)
 
     def get_learnable_params(self, train_params):

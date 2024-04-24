@@ -1,7 +1,6 @@
 import torch
 import torch.nn.functional as F
 from torch.nn import Module
-from selfweed.utils.utils import substitute_values
 from .utils import get_reduction
 
 
@@ -23,3 +22,13 @@ class FocalLoss(Module):
             focal_loss = torch.pow((1 - pt), self.gamma) * ce_loss
 
         return self.reduction(focal_loss)
+    
+    
+class PlantLoss(FocalLoss):
+
+    def __call__(self, x, target, **kwargs):
+        # Merge class 1 and 2
+        target = target.where(target != 2, 1)
+        plant_logits = x[:, 1:3].mean(dim=1)
+        logits = torch.cat((x[:, 0].unsqueeze(1), plant_logits.unsqueeze(1)), dim=1)
+        return super().__call__(logits, target, **kwargs)
