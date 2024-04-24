@@ -233,11 +233,6 @@ class RunningAverage:
         return self.accumulator / self.steps
 
 
-class ResultDict(EasyDict):
-    LOGITS: torch.Tensor
-    LOSS = torch.Tensor
-
-
 def previous_iterator(some_iterable, return_first=True):
     prevs, items = tee(some_iterable, 2)
     prevs = chain([None], prevs)

@@ -15,13 +15,14 @@ parameters:
 
   tracker:
     ignored_files: ["*.bin,*.safetensors"]
+    train_image_log_frequency: [20]
     val_image_log_frequency: [10]
     test_image_log_frequency: [10]
 
   train:
     max_epochs: [15]
     compile: [False]
-    initial_lr: [0.00001]
+    initial_lr: [0.0001]
     optimizer: [AdamW]
     # scheduler:
     #   type: [reduce_lr_on_plateau]
@@ -34,10 +35,10 @@ parameters:
   loss:
     class_weighting: [True]
     components:
-      - focal:
-          weight: 1.0
-        # contrastive:
-        #   weight: 0.475
+      - plant:
+          weight: 0.5
+        contrastive:
+          weight: 0.5
 
   model:
     name: [rw_segformer] # path to model class or model name contained in EzDL or super-gradients

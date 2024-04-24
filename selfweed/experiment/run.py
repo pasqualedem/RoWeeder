@@ -1,3 +1,4 @@
+import contextlib
 import os
 import sys
 import shutil
@@ -12,6 +13,7 @@ from torch.optim import AdamW
 from torchmetrics import MetricCollection
 from tqdm import tqdm
 
+from selfweed.models.utils import LossOutput, ModelOutput
 from selfweed.utils.logger import get_logger
 from selfweed.data import get_dataloaders
 from selfweed.data.utils import DataDict
@@ -20,7 +22,6 @@ from selfweed.loss import build_loss
 from selfweed.models import build_model
 from selfweed.utils.metrics import build_metrics
 from selfweed.utils.utils import (
-    ResultDict,
     RunningAverage,
     write_yaml,
 )
@@ -128,8 +129,7 @@ class Run:
             lr=self.train_params["initial_lr"],
         )
 
-        scheduler_params = self.train_params.get("scheduler", None)
-        if scheduler_params:
+        if scheduler_params := self.train_params.get("scheduler", None):
             self.scheduler, self.scheduler_step_moment = get_scheduler(
                 scheduler_params=scheduler_params,
                 optimizer=self.optimizer,
@@ -204,9 +204,7 @@ class Run:
                 f"Running Model Training {self.params.get('experiment').get('name')}"
             )
             for epoch in range(self.train_params["max_epochs"]):
-                logger.info(
-                    "Epoch: {}/{}".format(epoch, self.train_params["max_epochs"])
-                )
+                logger.info(f'Epoch: {epoch}/{self.train_params["max_epochs"]}')
                 self.train_epoch(epoch)
 
                 metrics = None
@@ -215,7 +213,7 @@ class Run:
                     and epoch % self.train_params.get("val_frequency", 1) == 0
                 ):
                     with self.tracker.validate():
-                        logger.info(f"Running Model Validation")
+                        logger.info("Running Model Validation")
                         metrics = self.validate_epoch(epoch)
                         self._scheduler_step(SchedulerStepMoment.EPOCH, metrics)
                 self.save_training_state(epoch, metrics)
@@ -232,23 +230,20 @@ class Run:
         return metric < self.best_metric
 
     def save_training_state(self, epoch, metrics=None):
-        if metrics:
-            if self._metric_is_better(metrics[self.watch_metric]):
-                logger.info(
-                    f"Saving best model with metric {metrics[self.watch_metric]} as given that metric is greater than {self.best_metric}"
-                )
-                self.best_metric = metrics[self.watch_metric]
-                self.tracker.log_training_state(epoch=epoch, subfolder="best")
+        if metrics and self._metric_is_better(metrics[self.watch_metric]):
+            logger.info(
+                f"Saving best model with metric {metrics[self.watch_metric]} as given that metric is greater than {self.best_metric}"
+            )
+            self.best_metric = metrics[self.watch_metric]
+            self.tracker.log_training_state(epoch=epoch, subfolder="best")
         self.tracker.log_training_state(epoch=epoch, subfolder="latest")
 
     def _get_lr(self):
         if self.scheduler is None:
             return self.train_params["initial_lr"]
-        try:
+        with contextlib.suppress(NotImplementedError):
             if hasattr(self.scheduler, "get_lr"):
                 return self.scheduler.get_lr()[0]
-        except NotImplementedError:
-            pass
         if hasattr(self.scheduler, "optimizer"):
             return self.scheduler.optimizer.param_groups[0]["lr"]
         return self.scheduler.optimizers[0].param_groups[0]["lr"]
@@ -282,8 +277,8 @@ class Run:
             raise e
         return outputs
 
-    def _backward(self, batch_idx, input_dict, outputs, loss_normalizer):
-        loss = outputs.loss / loss_normalizer
+    def _backward(self, batch_idx, input_dict, outputs: ModelOutput, loss_normalizer):
+        loss = outputs.loss.value / loss_normalizer
         self.accelerator.backward(loss)
         check_nan(
             self.model,
@@ -299,6 +294,14 @@ class Run:
         metrics = params.get(f"{phase}_metrics", None)
         metrics = build_metrics(metrics)
         setattr(self, f"{phase}_metrics", self.accelerator.prepare(metrics))
+        
+    def _update_loss(self, loss: LossOutput):
+        loss_value = loss.value.item()
+        loss_components = {k: v.item() for k, v in loss.components.items()}
+        self.tracker.log_metric("loss", loss_value)
+        if len(loss_components) > 1: # If there are multiple components
+            for k, v in loss_components.items():
+                self.tracker.log_metric(f"{k}_loss", v)
 
     def _update_metrics(
         self,
@@ -335,10 +338,7 @@ class Run:
         step: int,
     ):
         self.tracker.log_metric("step", self.global_train_step)
-        metric_values = self._update_metrics(
-            self.train_metrics, preds, gt, tot_steps
-        )
-        return metric_values
+        return self._update_metrics(self.train_metrics, preds, gt, tot_steps)
 
     def train_epoch(
         self,
@@ -352,6 +352,7 @@ class Run:
         self.train_metrics.reset()
 
         loss_avg = RunningAverage()
+        loss_components_avg = {k: RunningAverage() for k in self.criterion.components.keys()}
         loss_normalizer = 1
         # tqdm stuff
         bar = tqdm(
@@ -373,7 +374,9 @@ class Run:
             self._scheduler_step(SchedulerStepMoment.BATCH)
 
             loss_avg.update(loss.item())
-            self.tracker.log_metric("loss", loss.item())
+            for k, v in result_dict.loss.components.items():
+                loss_components_avg[k].update(v.item())
+            self._update_loss(result_dict.loss)
 
             metric_values = self._update_train_metrics(
                 preds,
@@ -386,6 +389,7 @@ class Run:
                     **metric_values,
                     "loss": loss.item(),
                     "lr": self._get_lr(),
+                    **{k: v.compute() for k, v in loss_components_avg.items()},
                 }
             )
             self.global_train_step += 1
@@ -398,6 +402,7 @@ class Run:
         metric_dict = {
             **self.train_metrics.compute(),
             "avg_loss": loss_avg.compute(),
+            **{k: v.compute() for k, v in loss_components_avg.items()},
         }
         for k, v in metric_dict.items():
             logger.info(f"{k}: {v}")
@@ -428,14 +433,14 @@ class Run:
         self.tracker.create_image_sequence(f"{phase}_predictions")
         with torch.no_grad():
             for batch_idx, batch_dict in bar:
-                result_dict = self.model(batch_dict)
+                result_dict: ModelOutput = self.model(batch_dict)
                 outputs = result_dict.logits
                 preds = outputs.argmax(dim=1)
 
                 metrics_value = self._update_val_metrics(
                     preds, batch_dict.target, tot_steps
                 )
-                loss = result_dict.loss
+                loss = result_dict.loss.value
 
                 avg_loss.update(loss.item())
                 bar.set_postfix(
@@ -477,7 +482,7 @@ class Run:
         return metrics_dict
     
     def restore_best_model(self):
-        filename = self.tracker.local_dir + "/best/model.safetensors"
+        filename = f"{self.tracker.local_dir}/best/model.safetensors"
         with safe_open(filename, framework="pt") as f:
             weights = {k: f.get_tensor(k) for k in f.keys()}
         self.model.load_state_dict(weights)
