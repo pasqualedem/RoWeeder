@@ -20,7 +20,7 @@ parameters:
     test_image_log_frequency: [10]
 
   train:
-    max_epochs: [15]
+    max_epochs: [30]
     compile: [False]
     initial_lr: [0.0001]
     optimizer: [AdamW]
@@ -35,10 +35,8 @@ parameters:
   loss:
     class_weighting: [True]
     components:
-      - plant:
-          weight: 0.5
-        contrastive:
-          weight: 0.5
+      - focal:
+          weight: 1.0
 
   model:
     name: [rw_segformer] # path to model class or model name contained in EzDL or super-gradients
@@ -69,3 +67,26 @@ parameters:
     F1Score: *metric_params
 
 other_grids:
+  -   loss:
+        class_weighting: [True]
+        components:
+          - plant:
+              weight: 0.5
+            contrastive:
+              weight: 0.5
+  -   loss:
+        class_weighting: [True]
+        components:
+          - focal:
+              weight: 0.5
+            contrastive:
+              weight: 0.5
+  -   loss:
+        class_weighting: [True]
+        components:
+          - focal:
+              weight: 0.2
+            contrastive:
+              weight: 0.4
+            plant:
+              weight: 0.4
