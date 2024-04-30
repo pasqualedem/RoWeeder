@@ -99,10 +99,9 @@ class Run:
         model_name = self.model_params.get("name")
         logger.info(f"Creating model {model_name}")
         self.model = build_model(params=self.model_params)
-        self.watch_metric = self.train_params["watch_metric"]
         self.greater_is_better = self.train_params.get("greater_is_better", True)
         logger.info("Creating criterion")
-        self.criterion = build_loss(self.params["loss"])
+        self.criterion = None
         self.model = WrapperModule(self.model, self.criterion)
 
         if self.train_params.get("compile", False):
@@ -120,6 +119,9 @@ class Run:
 
     def _prep_for_training(self):
         logger.info("Creating optimizer")
+        self.watch_metric = self.train_params["watch_metric"]
+        self.criterion = build_loss(self.params["loss"])
+        self.model.loss = self.criterion
         if isinstance(self.model, torch.nn.parallel.DistributedDataParallel):
             params = self.model.module.get_learnable_params(self.train_params)
         else:
@@ -217,6 +219,9 @@ class Run:
                         metrics = self.validate_epoch(epoch)
                         self._scheduler_step(SchedulerStepMoment.EPOCH, metrics)
                 self.save_training_state(epoch, metrics)
+                
+        # Restore best model
+        self.restore_best_model()
 
         if self.test_loader:
             self.test()
@@ -489,8 +494,7 @@ class Run:
 
     def test(self):
         self.test_loader = self.accelerator.prepare(self.test_loader)
-        # Restore best model
-        self.restore_best_model()
+        self._init_metrics(self.params, phase="val")
         with self.tracker.test():
             self.evaluate(self.test_loader, phase="test")
 

@@ -109,11 +109,16 @@ class Experimenter:
         logger.info(f"There are {len(complete_grids)} grids")
 
         if self.exp_settings.search == "grid":
-            return self.generate_grid_search(complete_grids, other_grids)
+            self.generate_grid_search(complete_grids, other_grids)
         elif self.exp_settings.search == "optim":
-            return self.generate_optim_search(complete_grids)
+            self.generate_optim_search(complete_grids)
         else:
             raise ValueError(f"Unknown search type: {self.exp_settings.search}")
+        self.grids = [
+            [{"experiment": {**self.exp_settings}, **params} for params in grid]
+            for grid in self.grids
+        ]
+        return self.gs, self.grids, complete_grids
 
     def generate_optim_search(self, complete_grids):
         fname = f"{self.exp_settings.name}_{self.exp_settings.group.replace('/', '_')}"
@@ -197,7 +202,7 @@ class Experimenter:
                         f"Running run {j} out of {len(grid) - 1} ({sum(len(self.grids[k]) for k in range(i)) + j} / {self.gs.total_runs - 1})"
                     )
                     run = Run()
-                    run.init({"experiment": {**self.exp_settings}, **params})
+                    run.init(params)
                     run._prep_for_training()
                     metric = run.launch()
                     print(self.EXP_FINISH_SEP)
@@ -297,10 +302,19 @@ def test(param_path: str = "parameters.yaml"):
     logger.info("Running run")
     settings = load_yaml(param_path)
     logger.info(f"Loaded parameters from {param_path}")
-    single_run = Run()
-    single_run.init(settings)
-    single_run.test()
-    single_run.end()
+    if "experiment" in settings: # It's a grid
+        experimenter = Experimenter()
+        summary, grids, dot_elements = experimenter.calculate_runs(settings)
+    else:
+        grids = [[settings]]
+    for i, grid in enumerate(grids):
+        print(f"Grid {i+1} with {len(grid)} runs")
+        for j, params in enumerate(grid):
+            print(f"Run {j+1} out of {len(grid)}")
+            run = Run()
+            run.init(params)
+            run.test()
+            run.end()
 
 
 def preview(settings: Mapping, param_path: str = "local variable"):

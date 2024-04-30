@@ -1,3 +1,5 @@
+from selfweed.data.weedmap import WeedMapDataset
+from selfweed.models.pseudo import PseudoModel
 from selfweed.models.rowweeder import RowWeeder
 
 from transformers.models.segformer.modeling_segformer import SegformerForImageClassification, SegformerConfig
@@ -26,3 +28,9 @@ def build_roweeder_segformer(
     embeddings_dims = SegformerConfig.from_pretrained("nvidia/mit-b0").hidden_sizes
     encoder = encoder.segformer.encoder
     return build_rowweeder_model(encoder, input_channels, embeddings_dims, transformer_layers)
+
+
+def build_pseudo_gt_model(
+    gt_folder
+):
+    return PseudoModel(gt_folder)

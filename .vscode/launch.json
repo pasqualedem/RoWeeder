@@ -50,5 +50,14 @@
             "justMyCode": false,
             "args": ["experiment"]
         },
+        {
+            "name": "Pseudo Test",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["test", "--parameters=parameters_test/pseudo.yaml"]
+        },
     ]
 }

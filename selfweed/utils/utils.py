@@ -30,14 +30,8 @@ class StrEnum(str, Enum):
 
 
 def load_yaml(file_path):
-    try:
-        with open(file_path, "r") as yaml_file:
-            data = yaml.safe_load(yaml_file.read())
-            return data
-    except FileNotFoundError:
-        print(f"File '{file_path}' not found.")
-    except yaml.YAMLError as e:
-        print(f"Error parsing YAML file: {e}")
+    with open(file_path, "r") as yaml_file:
+        return yaml.safe_load(yaml_file.read())
         
 
 def write_yaml(data: dict, file_path: str = None, file=None):

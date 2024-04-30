@@ -10,7 +10,7 @@ from accelerate.logging import get_logger
 from transformers import get_scheduler as get_transformers_scheduler
 
 from selfweed.data.utils import DataDict
-from selfweed.models.utils import ModelOutput
+from selfweed.models.utils import LossOutput, ModelOutput
 from selfweed.tracker.abstract_tracker import AbstractLogger
 from selfweed.utils.logger import get_logger
 
@@ -126,10 +126,10 @@ class WrapperModule(torch.nn.Module):
 
     def forward(self, input_dict):
         gt = input_dict.target
-        model_args = inspect.signature(self.model.forward).parameters 
+        model_args = inspect.signature(self.model.forward).parameters
         input_dict = {k: v for k, v in input_dict.items() if k in model_args}
         result_dict = self.model(**input_dict)
-        loss = self.loss(result_dict, gt)
+        loss = self.loss(result_dict, gt) if self.loss is not None else LossOutput(value=torch.tensor(0.0))
         return ModelOutput(loss=loss, logits=result_dict.logits, scores=result_dict.scores)
 
     def get_learnable_params(self, train_params):

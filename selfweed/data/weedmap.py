@@ -50,17 +50,15 @@ class WeedMapDataset(Dataset):
 
     def __len__(self):
         return len(self.index)
-
-    def __getitem__(self, i):
-        field, filename = self.index[i]
-        gt_path = os.path.join(
-            self.gt_folders[field], filename
-        )
+    
+    def _get_gt(self, gt_path):
         gt = torchvision.io.read_image(gt_path)
         gt = gt[[2, 1, 0], ::]
         gt = gt.argmax(dim=0)
         gt = self.target_transform(gt)
-
+        return gt
+    
+    def _get_image(self, field, filename):
         channels = []
         for channel_folder in self.channels:
             channel_path = os.path.join(
@@ -72,7 +70,16 @@ class WeedMapDataset(Dataset):
             channel = torchvision.io.read_image(channel_path)
             channels.append(channel)
         channels = torch.cat(channels).float()
-        channels = self.transform(channels)
+        return self.transform(channels)
+
+    def __getitem__(self, i):
+        field, filename = self.index[i]
+        gt_path = os.path.join(
+            self.gt_folders[field], filename
+        )
+        gt = self._get_gt(gt_path)
+        channels = self._get_image(field, filename)
+
         data_dict = DataDict(
             image = channels,
             target = gt,

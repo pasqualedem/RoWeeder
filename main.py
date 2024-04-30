@@ -99,6 +99,12 @@ def experiment(parameters, parallel, only_create):
 def run(parameters):
     from selfweed.experiment.experiment import run as run_single
     run_single(param_path=parameters)
+    
+@main.command("test")
+@click.option("--parameters", default="parameters.yaml", help="Path to the parameters file")
+def test(parameters):
+    from selfweed.experiment.experiment import test as run_test
+    run_test(param_path=parameters)
 
     
 @main.command("rotate")
