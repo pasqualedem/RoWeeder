@@ -49,8 +49,9 @@ parameters:
     channels: *input_channels
     train_fields: [["000", "001", "002", "004"]]
     test_fields: [["003"]]
-    mean: [[0.485, 0.456, 0.406]]
-    std: [[0.229, 0.224, 0.225]]
+    preprocess:
+      mean: [[0.485, 0.456, 0.406]]
+      std: [[0.229, 0.224, 0.225]]
 
   dataloader:
     num_workers: [0]

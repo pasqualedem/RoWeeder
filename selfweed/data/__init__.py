@@ -26,6 +26,8 @@ def get_dataloaders(dataset_params, dataloader_params, seed=42):
     if "train_fields" in dataset_params:
         train_params = deepcopy(dataset_params)
         train_params["fields"] = dataset_params["train_fields"]
+        train_params.pop("train_fields")
+        train_params.pop("test_fields")
         train_set = SelfSupervisedWeedMapDataset(
             **train_params,
             transform=transforms,
