@@ -81,9 +81,8 @@ def gt_defix(gt):
 def load_and_label(outdir, param_file, interactive=True):
     with open(param_file, "r") as f:
         params = yaml.safe_load(f)
-    now = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
     param_id = param_file.split("/")[-1].split(".")[0]
-    outsubdir = os.path.join(outdir, f"{now}_{param_id}")
+    outsubdir = os.path.join(outdir, param_id)
     for _ in label(outsubdir, **params, interactive=interactive):
         pass
 
@@ -98,7 +97,7 @@ def save_and_label(
     now = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
     hashid = hash(now)
     hashid_8 = str(hashid)[-8:]
-    outsubdir = os.path.join(outdir, f"{now}_{hashid_8}")
+    outsubdir = os.path.join(outdir, hashid_8)
     os.makedirs(outdir, exist_ok=True)
 
     out_summary_file(
@@ -134,8 +133,8 @@ def label(
     )
     dataset = get_dataset(**dataset_params)
     for i, (data_dict) in enumerate(tqdm(dataset)):
-        img = data_dict[DataDict.image]
-        gt = data_dict[DataDict.target]
+        img = data_dict.image
+        gt = data_dict.target
         mask = plant_detector(img)
         result_dict = detector.predict_from_mask(mask)
         lines = result_dict[HoughDetectorDict.LINES]
@@ -152,7 +151,7 @@ def label(
         ).transpose(2, 0, 1)
         # RGB to BGR
         weed_map = weed_map[[2, 1, 0], ::] 
-        path, basename = os.path.split(data_dict[DataDict.name])
+        path, basename = os.path.split(data_dict.name)
         path, gt_folder = os.path.split(path)
         path, field = os.path.split(path)
         os.makedirs(os.path.join(outdir, field), exist_ok=True)
