@@ -18,6 +18,7 @@ parameters:
     train_image_log_frequency: [20]
     val_image_log_frequency: [10]
     test_image_log_frequency: [10]
+    tags: [[Focal]]
 
   train:
     max_epochs: [30]
@@ -75,6 +76,8 @@ other_grids:
               weight: 0.5
             contrastive:
               weight: 0.5
+      tracker:
+        tags: [[Plant, Contrastive]]
   -   loss:
         class_weighting: [True]
         components:
@@ -82,6 +85,17 @@ other_grids:
               weight: 0.5
             contrastive:
               weight: 0.5
+      tracker:
+        tags: [[Focal, Contrastive]]
+  -   loss:
+        class_weighting: [True]
+        components:
+          - focal:
+              weight: 0.5
+            plant:
+              weight: 0.5
+      tracker:
+        tags: [[Focal, Plant]]
   -   loss:
         class_weighting: [True]
         components:
@@ -91,3 +105,5 @@ other_grids:
               weight: 0.4
             plant:
               weight: 0.4
+      tracker:
+        tags: [[Focal, Contrastive, Plant]]
