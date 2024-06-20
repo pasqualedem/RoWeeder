@@ -2,8 +2,10 @@ from selfweed.data.weedmap import WeedMapDataset
 from selfweed.models.pseudo import PseudoModel
 from selfweed.models.rowweeder import RowWeeder
 
-from transformers.models.segformer.modeling_segformer import SegformerForImageClassification, SegformerConfig
+from transformers.models.segformer.modeling_segformer import SegformerForImageClassification, SegformerConfig, SegformerForSemanticSegmentation
 
+from selfweed.models.utils import HuggingFaceWrapper
+from selfweed.data.weedmap import WeedMapDataset
 
 def build_rowweeder_model(
     encoder,
@@ -28,6 +30,16 @@ def build_roweeder_segformer(
     embeddings_dims = SegformerConfig.from_pretrained("nvidia/mit-b0").hidden_sizes
     encoder = encoder.segformer.encoder
     return build_rowweeder_model(encoder, input_channels, embeddings_dims, transformer_layers)
+
+def build_segformer(
+    input_channels
+):
+    segformer = SegformerForSemanticSegmentation.from_pretrained(
+        "nvidia/mit-b0",
+        id2label=WeedMapDataset.id2class,
+        label2id={v: k for k,v in WeedMapDataset.id2class.items()}
+        )
+    return HuggingFaceWrapper(segformer)
 
 
 def build_pseudo_gt_model(

@@ -88,6 +88,7 @@ def get_testloader(dataset_params, dataloader_params, preprocess_params):
     test_params = deepcopy(dataset_params)
     test_params["fields"] = dataset_params["test_fields"]
     test_params.pop("test_fields")
+    test_params.pop("gt_folder")
     if "train_fields" in dataset_params:
         test_params.pop("train_fields")
 
