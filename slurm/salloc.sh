@@ -1,0 +1,1 @@
+salloc -N 1 --partition=boost_usr_prod --qos=boost_qos_dbg --gpus 1

@@ -1,0 +1,22 @@
+dataset_params:
+  fields:
+  - '000'
+  - '001'
+  - '002'
+  - '003'
+  - '004'
+  modality: New Dataset
+  root: dataset/patches/512
+hough_detector_params:
+  angle_error: 3
+  clustering_tol: 2
+  step_rho: 1
+  step_theta: 1
+  theta_reduction_threshold: 1.0
+  theta_value: 1.56
+  threshold: 160
+  uniform_significance: 0.1
+plant_detector_params:
+  name: NDVIDetector
+  params:
+    threshold: 0.1
