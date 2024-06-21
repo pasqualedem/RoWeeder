@@ -21,7 +21,7 @@ parameters:
     tags: [[Focal]]
 
   train:
-    max_epochs: [30]
+    max_epochs: [5, 10, 20, 30]
     compile: [False]
     initial_lr: [0.0001]
     optimizer: [AdamW]
@@ -69,41 +69,3 @@ parameters:
     F1Score: *metric_params
 
 other_grids:
-  # -   loss:
-  #       class_weighting: [True]
-  #       components:
-  #         - plant:
-  #             weight: 0.5
-  #           contrastive:
-  #             weight: 0.5
-  #     tracker:
-  #       tags: [[Plant, Contrastive]]
-  # -   loss:
-  #       class_weighting: [True]
-  #       components:
-  #         - focal:
-  #             weight: 0.5
-  #           contrastive:
-  #             weight: 0.5
-  #     tracker:
-  #       tags: [[Focal, Contrastive]]
-  # -   loss:
-  #       class_weighting: [True]
-  #       components:
-  #         - focal:
-  #             weight: 0.5
-  #           plant:
-  #             weight: 0.5
-  #     tracker:
-  #       tags: [[Focal, Plant]]
-  # -   loss:
-  #       class_weighting: [True]
-  #       components:
-  #         - focal:
-  #             weight: 0.2
-  #           contrastive:
-  #             weight: 0.4
-  #           plant:
-  #             weight: 0.4
-  #     tracker:
-  #       tags: [[Focal, Contrastive, Plant]]

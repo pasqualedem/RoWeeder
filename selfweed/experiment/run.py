@@ -107,8 +107,11 @@ class Run:
         if self.train_params.get("compile", False):
             logger.info("Compiling model")
             self.model = torch.compile(self.model)
-        logger.info("Preparing model, optimizer, dataloaders and scheduler")
-
+        
+        if self.params.get("train"):
+            self._prep_for_training()
+            
+        logger.info("Preparing model")
         self.model = self.accelerator.prepare(self.model)
 
         if self.val_loader:
@@ -139,6 +142,7 @@ class Run:
                 * len(self.train_loader),
             )
 
+        logger.info("Preparing optimizer, dataloaders and scheduler")
         self.train_loader, self.optimizer, self.scheduler = self.accelerator.prepare(
             self.train_loader, self.optimizer, self.scheduler
         )
