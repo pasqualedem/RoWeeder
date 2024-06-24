@@ -6,8 +6,8 @@ import os
 import uuid
 import pandas as pd
 from typing import Mapping
-from easydict import EasyDict
 
+from selfweed.utils.utils import EasyDict
 from selfweed.utils.logger import get_logger
 from selfweed.experiment.run import Run
 from selfweed.experiment.parallel import ParallelRun
@@ -188,7 +188,7 @@ class Experimenter:
             total_runs_excl=total_runs_excl,
         )
 
-    def execute_runs_generator(self):
+    def execute_runs(self):
         starting_run = self.exp_settings.start_from_run
         for i in range(self.exp_settings.start_from_grid, len(self.grids)):
             grid = self.grids[i]
@@ -217,7 +217,7 @@ class Experimenter:
                     yield None
 
     def execute_runs(self, only_create=False):
-        for _ in self.execute_runs_generator():
+        for _ in self.execute_runs():
             pass
 
     def update_settings(self, d):
@@ -237,7 +237,7 @@ class ParallelExperimenter(Experimenter):
     def __init__(self):
         super().__init__()
 
-    def execute_runs_generator(self, only_create=False):
+    def execute_runs(self, only_create=False):
         starting_run = self.exp_settings.start_from_run
         self.exp_settings.uuid = self.exp_settings.uuid or str(uuid.uuid4())[:8]
 
@@ -266,10 +266,6 @@ class ParallelExperimenter(Experimenter):
                     print(self.EXP_CRASHED_SEP)
                     if not self.exp_settings.continue_with_errors:
                         raise ex
-
-    def execute_runs(self, only_create=False):
-        for _ in self.execute_runs_generator(only_create=only_create):
-            pass
 
 
 def experiment(

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+conda init
+conda activate SSLWeedMap
+export TMPDIR=./tmp
+python main.py run $@

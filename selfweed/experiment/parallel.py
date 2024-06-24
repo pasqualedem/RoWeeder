@@ -12,7 +12,7 @@ logger = getLogger(__name__)
 
 class ParallelRun:
     slurm_command = "sbatch"
-    slurm_script = "launch_run"
+    slurm_script = "slurm/launch_run"
     slurm_script_first_parameter = "--parameters="
     slurm_outfolder = "out"
     out_extension = "out"

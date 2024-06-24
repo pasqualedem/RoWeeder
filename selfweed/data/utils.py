@@ -1,4 +1,4 @@
-from easydict import EasyDict
+from selfweed.utils.utils import EasyDict
 from enum import Enum, StrEnum
 
 import torch

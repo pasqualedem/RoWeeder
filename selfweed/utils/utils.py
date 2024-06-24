@@ -1,5 +1,4 @@
 from enum import Enum
-from easydict import EasyDict
 import os
 import cv2
 import time
@@ -450,3 +449,41 @@ def get_square_from_lines(img_array, theta, rho, displacement, width, height):
     box = np.int0(box)
     cv2.drawContours(img_array, [box], 0, 255, -1)
     return img_array
+
+
+class EasyDict(dict):
+    def __init__(self, d=None, **kwargs):
+        if d is None:
+            d = {}
+        if kwargs:
+            d.update(**kwargs)
+        if isinstance(d, tuple):
+            for t in d:
+                setattr(self, t[0], t[1])
+        for k, v in d.items():
+            setattr(self, k, v)
+        # Class attributes
+        for k in self.__class__.__dict__.keys():
+            if not (k.startswith('__') and k.endswith('__')) and not k in ('update', 'pop'):
+                setattr(self, k, getattr(self, k))
+
+    def __setattr__(self, name, value):
+        if isinstance(value, (list, tuple)):
+            value = [self.__class__(x)
+                     if isinstance(x, dict) else x for x in value]
+        elif isinstance(value, dict) and not isinstance(value, self.__class__):
+            value = self.__class__(value)
+        super(EasyDict, self).__setattr__(name, value)
+        super(EasyDict, self).__setitem__(name, value)
+
+    __setitem__ = __setattr__
+
+    def update(self, e=None, **f):
+        d = e or dict()
+        d.update(f)
+        for k in d:
+            setattr(self, k, d[k])
+
+    def pop(self, k, d=None):
+        delattr(self, k)
+        return super(EasyDict, self).pop(k, d)

@@ -2,6 +2,7 @@
 dataset
 venv
 wandb
+out
 
 *.pth
 *.pyc

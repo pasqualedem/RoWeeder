@@ -46,7 +46,7 @@ parameters:
 
   dataset: # parameters depending on the class you defined for the dataset
     root: [dataset/patches/512] # path to the dataset
-    gt_folder: [dataset/generated/11-03-2024_17:30:26_69023956] # path to the gt folder
+    gt_folder: [dataset/generated/69023956] # path to the gt folder
     channels: *input_channels
     train_fields: [["000", "001", "002", "004"]]
     test_fields: [["003"]]
