@@ -107,13 +107,12 @@ class Run:
         if self.train_params.get("compile", False):
             logger.info("Compiling model")
             self.model = torch.compile(self.model)
-        
-        if self.params.get("train"):
-            self._prep_for_training()
             
         logger.info("Preparing model")
         self.model = self.accelerator.prepare(self.model)
-
+        
+        if self.params.get("train"):
+            self._prep_for_training()
         if self.val_loader:
             logger.info("Preparing validation dataloader")
             self._prep_for_validation()
