@@ -188,7 +188,7 @@ class Experimenter:
             total_runs_excl=total_runs_excl,
         )
 
-    def execute_runs(self):
+    def execute_runs(self, only_create=False):
         starting_run = self.exp_settings.start_from_run
         for i in range(self.exp_settings.start_from_grid, len(self.grids)):
             grid = self.grids[i]
@@ -207,18 +207,12 @@ class Experimenter:
                     print(self.EXP_FINISH_SEP)
                     if self.exp_settings.search == "optim":
                         self.grids[i].report_result(metric)
-                    yield metric
                     gc.collect()
                 except Exception as ex:
                     logger.error(f"Experiment {i} failed with error {ex}")
                     print(self.EXP_CRASHED_SEP)
                     if not self.exp_settings.continue_with_errors:
                         raise ex
-                    yield None
-
-    def execute_runs(self, only_create=False):
-        for _ in self.execute_runs():
-            pass
 
     def update_settings(self, d):
         self.exp_settings = update_collection(self.exp_settings, d)

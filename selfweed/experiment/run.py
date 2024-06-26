@@ -109,6 +109,9 @@ class Run:
             self.model = torch.compile(self.model)
             
         logger.info("Preparing model")
+        if self.params.get("loss"):
+            self.criterion = build_loss(self.params["loss"])
+            self.model.loss = self.criterion
         self.model = self.accelerator.prepare(self.model)
         
         if self.params.get("train"):
@@ -122,8 +125,6 @@ class Run:
     def _prep_for_training(self):
         logger.info("Creating optimizer")
         self.watch_metric = self.train_params["watch_metric"]
-        self.criterion = build_loss(self.params["loss"])
-        self.model.loss = self.criterion
         if isinstance(self.model, torch.nn.parallel.DistributedDataParallel):
             params = self.model.module.get_learnable_params(self.train_params)
         else:
