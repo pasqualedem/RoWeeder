@@ -1,11 +1,11 @@
-from selfweed.data.weedmap import WeedMapDataset
 from selfweed.models.pseudo import PseudoModel
 from selfweed.models.rowweeder import RowWeeder
 
 from transformers.models.segformer.modeling_segformer import SegformerForImageClassification, SegformerConfig, SegformerForSemanticSegmentation
+from transformers import ResNetForImageClassification
 
-from selfweed.models.utils import HuggingFaceWrapper
-from selfweed.data.weedmap import WeedMapDataset
+from selfweed.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper
+from selfweed.data.weedmap import WeedMapDataset, ClassificationWeedMapDataset
 
 def build_rowweeder_model(
     encoder,
@@ -43,6 +43,18 @@ def build_segformer(
         label2id={v: k for k,v in WeedMapDataset.id2class.items()}
         )
     return HuggingFaceWrapper(segformer)
+
+
+def build_resnet50(
+    input_channels
+):
+    return HuggingFaceClassificationWrapper(ResNetForImageClassification.from_pretrained(
+        "microsoft/resnet-50",
+        id2label=ClassificationWeedMapDataset.id2class,
+        label2id={v: k for k,v in ClassificationWeedMapDataset.id2class.items()},
+        ignore_mismatched_sizes=True,
+        )
+)
 
 
 def build_pseudo_gt_model(

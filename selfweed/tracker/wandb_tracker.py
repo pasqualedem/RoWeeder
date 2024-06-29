@@ -33,6 +33,7 @@ def wandb_experiment(accelerator: Accelerator, params: dict):
         "accelerator": accelerator,
         "project_name": params["experiment"]["name"],
         "group": params["experiment"].get("group", None),
+        "task": params["experiment"]["task"],
         **logger_params,
     }
     wandb_logger = WandBLogger(**wandb_params)

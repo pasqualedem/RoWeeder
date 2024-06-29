@@ -35,3 +35,12 @@ class HuggingFaceWrapper(nn.Module):
     
     def get_learnable_params(self, train_params):
         return self.model.parameters()
+    
+    
+class HuggingFaceClassificationWrapper(HuggingFaceWrapper):
+        
+    def forward(self, image):
+        B, _, H, W = image.shape
+        hug_dict = {"pixel_values": image}
+        logits = self.model(**hug_dict).logits
+        return RowWeederModelOutput(logits=logits, scores=None)

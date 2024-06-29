@@ -3,11 +3,9 @@ from sklearn.model_selection import train_test_split
 import torch
 import torchvision.transforms as T
 
-from selfweed.data.weedmap import SelfSupervisedWeedMapDataset, WeedMapDataset
+from selfweed.data.weedmap import SelfSupervisedWeedMapDataset, WeedMapDataset, ClassificationWeedMapDataset
 
-
-def get_dataloaders(dataset_params, dataloader_params, seed=42):
-    dataset_params = deepcopy(dataset_params)
+def get_preprocessing(dataset_params):
     preprocess_params = dataset_params.pop("preprocess")
     transforms = T.Compose(
         [
@@ -17,11 +15,69 @@ def get_dataloaders(dataset_params, dataloader_params, seed=42):
             ),
         ]
     )
+    if "resize" in preprocess_params:
+        transforms.transforms.insert(0, T.Resize(preprocess_params["resize"]))
     target_transforms = T.Compose(
         [
             T.Lambda(lambda x: x.long()),
         ]
     )
+    deprocess = T.Compose(
+        [
+            T.Normalize(
+                mean=[-m / s for m, s in zip(preprocess_params["mean"], preprocess_params["std"])],
+                std=[1 / s for s in preprocess_params["std"]],
+            ),
+        ]
+    )
+    return transforms, target_transforms, deprocess
+
+def get_classification_dataloaders(dataset_params, dataloader_params, seed=42):
+    dataset_params = deepcopy(dataset_params)
+    transforms, _, deprocess = get_preprocessing(dataset_params)
+
+    if "train_fields" in dataset_params:
+        train_params = deepcopy(dataset_params)
+        train_params["fields"] = dataset_params["train_fields"]
+        train_params.pop("train_fields")
+        train_set = ClassificationWeedMapDataset(
+            **train_params,
+            transform=transforms,
+        )
+        val_set = ClassificationWeedMapDataset(
+            **train_params,
+            transform=transforms,
+        )
+        index = train_set.index
+
+        train_index, val_index = train_test_split(index, test_size=0.2, random_state=seed)
+        train_set.index = train_index
+        val_set.index = val_index
+
+        train_loader = torch.utils.data.DataLoader(
+            train_set,
+            batch_size=dataloader_params["batch_size"],
+            shuffle=True,
+            num_workers=dataloader_params["num_workers"],
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_set,
+            batch_size=dataloader_params["batch_size"],
+            shuffle=False,
+            num_workers=dataloader_params["num_workers"],
+        )
+    else:
+        train_loader = None
+        val_loader = None
+    return train_loader, val_loader, None, deprocess
+
+
+def get_dataloaders(dataset_params, dataloader_params, seed=42):
+    if "gt_folder" not in dataset_params:
+        # Classification dataset
+        return get_classification_dataloaders(dataset_params, dataloader_params, seed)
+    dataset_params = deepcopy(dataset_params)
+    transforms, target_transforms, deprocess = get_preprocessing(dataset_params)
 
     if "train_fields" in dataset_params:
         train_params = deepcopy(dataset_params)
@@ -60,31 +116,12 @@ def get_dataloaders(dataset_params, dataloader_params, seed=42):
     else:
         train_loader = None
         val_loader = None
-    test_loader = get_testloader(dataset_params, dataloader_params, preprocess_params)
-    
-    deprocess = T.Compose(
-        [
-            T.Normalize(
-                mean=[-m / s for m, s in zip(preprocess_params["mean"], preprocess_params["std"])],
-                std=[1 / s for s in preprocess_params["std"]],
-            ),
-        ]
-    )
+    test_loader = get_testloader(dataset_params, dataloader_params, transforms, target_transforms)
 
     return train_loader, val_loader, test_loader, deprocess
 
 
-def get_testloader(dataset_params, dataloader_params, preprocess_params):
-    transforms = T.Compose(
-        [
-            T.Normalize(mean=preprocess_params["mean"], std=preprocess_params["std"]),
-        ]
-    )
-    target_transforms = T.Compose(
-        [
-            T.Lambda(lambda x: x.long()),
-        ]
-    )
+def get_testloader(dataset_params, dataloader_params, transforms, target_transforms):
     test_params = deepcopy(dataset_params)
     test_params["fields"] = dataset_params["test_fields"]
     test_params.pop("test_fields")

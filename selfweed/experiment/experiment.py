@@ -58,6 +58,7 @@ class ExpSettings(EasyDict):
         self.n_trials = None
         self.max_parallel_runs = 1
         self.uuid = None
+        self.task = None
         self.timestamp = get_timestamp()
         super().__init__(*args, **kwargs)
         self.tracking_dir = self.tracking_dir or ""
@@ -81,6 +82,7 @@ class ExpSettings(EasyDict):
         self.n_trials = e.n_trials or self.n_trials
         self.max_parallel_runs = e.max_parallel_runs or self.max_parallel_runs
         self.uuid = e.uuid or self.uuid
+        self.task = e.task or self.task
 
 
 class Experimenter:

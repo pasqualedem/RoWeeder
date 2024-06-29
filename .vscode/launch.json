@@ -48,7 +48,7 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["experiment", "--parameters", "parameters/roweeder_contrastive.yaml"]
+            "args": ["experiment", "--parameters", "parameters/resnet.yaml"]
         },
         {
             "name": "Pseudo Test",

@@ -87,6 +87,63 @@ class WeedMapDataset(Dataset):
         if self.return_path:
             data_dict.name = gt_path
         return data_dict
+    
+    
+class ClassificationWeedMapDataset(Dataset):
+    id2class = {
+        0: "crop",
+        1: "weed",
+    }
+    def __init__(
+        self,
+        root,
+        channels,
+        fields,
+        transform=None,
+        return_path=False,
+    ):
+        super().__init__()
+        self.root = root
+        self.channels = channels
+        self.transform = transform
+        self.return_path = return_path
+        self.fields = fields
+
+        self.channels = channels
+            
+        self.index = [
+            (field, filename) for field in self.fields for filename in os.listdir(os.path.join(self.root, field, channels[0]))
+        ]
+        
+    def _get_image(self, field, filename):
+        channels = []
+        for channel_folder in self.channels:
+            channel_path = os.path.join(
+                self.root,
+                field,
+                channel_folder,
+                filename
+            )
+            channel = torchvision.io.read_image(channel_path)
+            channels.append(channel)
+        channels = torch.cat(channels).float()
+        return self.transform(channels)
+    
+    def __len__(self):
+        return len(self.index)
+    
+    def __getitem__(self, i):
+        field, filename = self.index[i]
+        channels = self._get_image(field, filename)
+        fname = os.path.splitext(filename)[0]
+        label = int(fname.split("_")[-1])
+        data_dict = DataDict(
+            image = channels,
+            target = torch.tensor(label)
+        )
+        if self.return_path:
+            data_dict.name = os.path.join(self.root, field, filename)
+        return data_dict
 
 
 class SelfSupervisedWeedMapDataset(WeedMapDataset):

@@ -60,6 +60,7 @@ class Run:
         self.global_train_step = 0
         self.global_val_step = 0
         self.validation_json = None
+        self.task = None
 
     def parse_params(self, params: dict):
         self.params = deepcopy(params)
@@ -89,6 +90,7 @@ class Run:
             mixed_precision=self.train_params.get("precision", None),
         )
         logger.info("Initiliazing tracker...")
+        self.task = self.params["experiment"].get("task", None)
         self.tracker = get_experiment_tracker(self.accelerator, self.params)
         self.url = self.tracker.url
         self.name = self.tracker.name
