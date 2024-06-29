@@ -1,7 +1,7 @@
 experiment:
   # It contains all the about the grids and the group of runs:
   name: RowWeed # name of the logger platform experiment
-  group: RoWeeder # name of group of experiments for the logger platform
+  group: FirstGrid # name of group of experiments for the logger platform
   continue_with_errors: False # continue with other runs even if a run fails
   start_from_grid: 0 # skip grids in the grid search
   start_from_run: 0 # skip runs from the selected grid
@@ -21,9 +21,9 @@ parameters:
     tags: [[Focal]]
 
   train:
-    max_epochs: [5, 10, 20, 30]
+    max_epochs: [20]
     compile: [False]
-    initial_lr: [0.0001]
+    initial_lr: [0.01, 0.005, 0.001]
     optimizer: [AdamW]
     # scheduler:
     #   type: [reduce_lr_on_plateau]
@@ -37,12 +37,10 @@ parameters:
     class_weighting: [True]
     components:
       - focal:
-          weight: 0.5
-        contrastive:
-          weight: 0.5
+          weight: 1.0
 
   model:
-    name: [rw_segformer] # path to model class or model name contained in EzDL or super-gradients
+    name: [segformer] # path to model class or model name contained in EzDL or super-gradients
     params:
       input_channels: &input_channels [['R', 'G', 'B']]
 
@@ -58,7 +56,7 @@ parameters:
 
   dataloader:
     num_workers: [0]
-    batch_size: [2]
+    batch_size: [16]
 
   train_metrics:
     JaccardIndex: &metric_params
@@ -71,12 +69,3 @@ parameters:
     F1Score: *metric_params
 
 other_grids:
-  -   loss:
-        class_weighting: [True]
-        components:
-          - focal:
-              weight: 0.5
-            plant:
-              weight: 0.5
-      tracker:
-        tags: [[Focal, Plant]]

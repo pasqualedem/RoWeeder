@@ -1,7 +1,7 @@
 experiment:
   # It contains all the about the grids and the group of runs:
   name: RowWeed # name of the logger platform experiment
-  group: RoWeeder # name of group of experiments for the logger platform
+  group: Contrastive # name of group of experiments for the logger platform
   continue_with_errors: False # continue with other runs even if a run fails
   start_from_grid: 0 # skip grids in the grid search
   start_from_run: 0 # skip runs from the selected grid
@@ -18,12 +18,12 @@ parameters:
     train_image_log_frequency: [20]
     val_image_log_frequency: [10]
     test_image_log_frequency: [10]
-    tags: [[Focal]]
+    tags: [[Focal, Contrastive]]
 
   train:
-    max_epochs: [5, 10, 20, 30]
+    max_epochs: [20, 30]
     compile: [False]
-    initial_lr: [0.0001]
+    initial_lr: [0.0001, 0.00005, 0.00001]
     optimizer: [AdamW]
     # scheduler:
     #   type: [reduce_lr_on_plateau]
@@ -58,7 +58,7 @@ parameters:
 
   dataloader:
     num_workers: [0]
-    batch_size: [2]
+    batch_size: [16]
 
   train_metrics:
     JaccardIndex: &metric_params
@@ -74,9 +74,20 @@ other_grids:
   -   loss:
         class_weighting: [True]
         components:
-          - focal:
+          - plant:
               weight: 0.5
-            plant:
+            contrastive:
               weight: 0.5
       tracker:
-        tags: [[Focal, Plant]]
+        tags: [[Plant, Contrastive]]
+  -   loss:
+        class_weighting: [True]
+        components:
+          - focal:
+              weight: 0.2
+            contrastive:
+              weight: 0.4
+            plant:
+              weight: 0.4
+      tracker:
+        tags: [[Focal, Contrastive, Plant]]

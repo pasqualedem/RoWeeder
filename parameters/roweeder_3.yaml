@@ -21,9 +21,9 @@ parameters:
     tags: [[Focal]]
 
   train:
-    max_epochs: [5, 10, 20, 30]
+    max_epochs: [20]
     compile: [False]
-    initial_lr: [0.0001]
+    initial_lr: [0.01, 0.005, 0.001]
     optimizer: [AdamW]
     # scheduler:
     #   type: [reduce_lr_on_plateau]
@@ -58,7 +58,7 @@ parameters:
 
   dataloader:
     num_workers: [0]
-    batch_size: [2]
+    batch_size: [16]
 
   train_metrics:
     JaccardIndex: &metric_params

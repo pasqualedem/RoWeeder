@@ -10,6 +10,7 @@ from selfweed.data.weedmap import WeedMapDataset
 def build_rowweeder_model(
     encoder,
     input_channels,
+    embedding_size,
     embedding_dims,
     transformer_layers=4
 ):
@@ -17,6 +18,7 @@ def build_rowweeder_model(
     return RowWeeder(
         encoder,
         input_channels=input_channels,
+        embedding_size=embedding_size,
         embedding_dims=embedding_dims,
         transformer_layers=transformer_layers,
     )
@@ -24,12 +26,13 @@ def build_rowweeder_model(
 
 def build_roweeder_segformer(
     input_channels,
-    transformer_layers=4
+    transformer_layers=4,
+    embedding_size=(1, )
 ):
     encoder = SegformerForImageClassification.from_pretrained("nvidia/mit-b0")
     embeddings_dims = SegformerConfig.from_pretrained("nvidia/mit-b0").hidden_sizes
     encoder = encoder.segformer.encoder
-    return build_rowweeder_model(encoder, input_channels, embeddings_dims, transformer_layers)
+    return build_rowweeder_model(encoder, input_channels, embedding_size, embeddings_dims, transformer_layers)
 
 def build_segformer(
     input_channels

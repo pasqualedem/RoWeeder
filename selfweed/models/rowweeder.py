@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,13 +12,20 @@ from selfweed.models.utils import RowWeederModelOutput
 
 class RowWeeder(nn.Module):
     def __init__(
-        self, encoder, input_channels, embedding_dims, transformer_layers=4
+        self,
+        encoder,
+        input_channels,
+        embedding_dims,
+        embedding_size=(1,),
+        transformer_layers=4,
     ) -> None:
         super().__init__()
         self.encoder = encoder
         self.embedding_dims = embedding_dims
+        self.embedding_size = embedding_size
         self.min_plant_size = 32
         num_channels = len(input_channels)
+        effective_embedding_dim = [embedding_dim * math.prod(embedding_size) for embedding_dim in embedding_dims]
         channels = [len(input_channels)] + embedding_dims
         self.plant_encoder = nn.ModuleList(
             [
@@ -35,21 +43,26 @@ class RowWeeder(nn.Module):
                 for i in range(len(channels) - 1)
             ]
         )
-
         self.crop_embeddings = nn.ModuleList(
-            [nn.Embedding(1, embedding_dim) for embedding_dim in embedding_dims]
+            [
+                nn.Embedding(1, embedding_dim)
+                for embedding_dim in effective_embedding_dim
+            ]
         )
         self.weed_embeddings = nn.ModuleList(
-            [nn.Embedding(1, embedding_dim) for embedding_dim in embedding_dims]
+            [
+                nn.Embedding(1, embedding_dim)
+                for embedding_dim in effective_embedding_dim
+            ]
         )
         self.transformers = nn.ModuleList(
             [
                 CropWeedTransformer(embedding_dim, transformer_layers)
-                for embedding_dim in embedding_dims
+                for embedding_dim in effective_embedding_dim
             ]
         )
         decoder_layers = []
-        reverse_channels = embedding_dims[::-1]
+        reverse_channels = effective_embedding_dim[::-1]
         for i in range(num_channels):
             decoder_layers.append(
                 nn.Sequential(
@@ -85,24 +98,36 @@ class RowWeeder(nn.Module):
         if flags.sum() == 0:
             return None
         plants = rearrange(plants, "b n c h w -> (b n) c h w")
-        
+
         # Ensure min plant size
         H, W = plants.shape[-2:]
         if H < self.min_plant_size or W < self.min_plant_size:
             if H < W:
                 H_W_ratio = W / H
                 W = int(self.min_plant_size * H_W_ratio)
-                plants = F.interpolate(plants, size=(self.min_plant_size, W), mode="bilinear")
+                plants = F.interpolate(
+                    plants, size=(self.min_plant_size, W), mode="bilinear"
+                )
             else:
                 W_H_ratio = H / W
                 H = int(self.min_plant_size * W_H_ratio)
-                plants = F.interpolate(plants, size=(H, self.min_plant_size), mode="bilinear")
-        
+                plants = F.interpolate(
+                    plants, size=(H, self.min_plant_size), mode="bilinear"
+                )
+
         plants_pyramid_features = []
         plants_features = plants
         for encoder in self.plant_encoder:
             plants_features = encoder(plants_features)
-            plants_embedding = plants_features.mean(dim=(2, 3))
+            if len(self.embedding_size) > 1:
+                plants_embedding = F.adaptive_avg_pool2d(
+                    plants_features, self.embedding_size[:2]
+                )
+                plants_embedding = rearrange(
+                    plants_embedding, "(b n) h w c -> (b n) (h w c)", b=b
+                )
+            else:
+                plants_embedding = plants_features.mean(dim=(2, 3))
             plants_embedding = rearrange(plants_embedding, "(b n) c -> b n c", b=b)
             plants_pyramid_features.append(plants_embedding)
         return plants_pyramid_features
@@ -116,7 +141,9 @@ class RowWeeder(nn.Module):
         )
         if crop_features is not None:
             normalized_crop_features = normalize(crop_features[i], p=2, dim=-1)
-            normalized_crop_features = rearrange(normalized_crop_features, "b n c -> (b n) c")
+            normalized_crop_features = rearrange(
+                normalized_crop_features, "b n c -> (b n) c"
+            )
             crop_scores = normalized_crop_features @ normalized_crops_embeddings.T
             neg_crop_scores = normalized_crop_features @ normalized_weed_embeddings.T
             crop_scores = torch.stack([crop_scores, neg_crop_scores], dim=1)
@@ -125,7 +152,9 @@ class RowWeeder(nn.Module):
 
         if weed_features is not None:
             normalized_weed_features = normalize(weed_features[i], p=2, dim=-1)
-            normalized_weed_features = rearrange(normalized_weed_features, "b n c -> (b n) c")
+            normalized_weed_features = rearrange(
+                normalized_weed_features, "b n c -> (b n) c"
+            )
             weed_scores = normalized_weed_features @ normalized_weed_embeddings.T
             neg_weed_scores = normalized_weed_features @ normalized_crops_embeddings.T
             weed_scores = torch.stack([weed_scores, neg_weed_scores], dim=1)
@@ -133,7 +162,7 @@ class RowWeeder(nn.Module):
             weed_scores = torch.ones(batch_size, 2, 0, device=device)
 
         return [crop_scores, weed_scores]
-    
+
     def _decode_background(self, features):
         features = features[::-1]
         for i in range(len(features) - 1):
@@ -171,6 +200,19 @@ class RowWeeder(nn.Module):
             repeat(cropweed_embeddings[i], "c e -> b c e", b=image.shape[0])
             for i in range(len(self.embedding_dims))
         ]
+        if len(self.embedding_size) > 1:
+            features = [
+                rearrange(
+                    F.unfold(
+                        feature,
+                        self.embedding_size,
+                        padding=(emb_size // 2 for emb_size in self.embedding_size),
+                    ),
+                    "b c (h w) -> b c h w",
+                    h=feature.shape[2],
+                )
+                for feature in features
+            ]
         features = [
             self.transformers[i](features[i], cropweed_embeddings[i])
             for i in range(len(self.embedding_dims))
