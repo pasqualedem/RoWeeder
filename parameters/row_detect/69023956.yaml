@@ -20,3 +20,7 @@ plant_detector_params:
   name: NDVIDetector
   params:
     threshold: 0.1
+slic_params:
+  percent: 0.005
+  compactness: 20
+  sigma: 1
