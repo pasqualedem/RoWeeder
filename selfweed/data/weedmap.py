@@ -45,6 +45,9 @@ class WeedMapDataset(Dataset):
             self.gt_folders = {
                 field: os.path.join(gt_folder, field) for field in self.fields
             }
+            for k, v in self.gt_folders.items():
+                if os.path.isdir(v):
+                    self.gt_folders[k] = os.path.join(v, "groundtruth") 
             
         self.index = [
             (field, filename) for field in self.fields for filename in os.listdir(self.gt_folders[field])
@@ -81,7 +84,7 @@ class WeedMapDataset(Dataset):
                 field,
                 ch,
                 filename
-            ) for ch in ["nir", "re"]
+            ) for ch in ["NIR", "RE"]
         ]
         nir_re = [torchvision.io.read_image(channel_path) for channel_path in nir_re_path]
         return (nir_re[0] - nir_re[1]) / (nir_re[0] + nir_re[1])        
@@ -118,6 +121,7 @@ class ClassificationWeedMapDataset(Dataset):
         channels,
         fields,
         transform=None,
+        target_transform=None,
         return_path=False,
     ):
         super().__init__()
@@ -125,6 +129,7 @@ class ClassificationWeedMapDataset(Dataset):
         self.channels = channels
         self.transform = transform
         self.return_path = return_path
+        self.target_transform = target_transform
         self.fields = fields
 
         self.channels = channels
@@ -157,7 +162,7 @@ class ClassificationWeedMapDataset(Dataset):
         label = int(fname.split("_")[-1])
         data_dict = DataDict(
             image = channels,
-            target = torch.tensor(label)
+            target = self.target_transform(torch.tensor(label))
         )
         if self.return_path:
             data_dict.name = os.path.join(self.root, field, filename)

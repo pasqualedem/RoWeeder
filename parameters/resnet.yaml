@@ -23,7 +23,7 @@ parameters:
     tags: [[Focal]]
 
   train:
-    max_epochs: [5, 10, 20, 30]
+    max_epochs: [1]
     compile: [False]
     initial_lr: [0.0001]
     optimizer: [AdamW]
@@ -46,18 +46,20 @@ parameters:
     params:
       input_channels: &input_channels [['R', 'G', 'B']]
       plant_detector_params:
-        name: NDVIDetector
+        name: [NDVIDetector]
         params:
-          threshold: 0.1
+          threshold: [0.1]
       slic_params:
-        percent: 0.005
-        compactness: 20
-        sigma: 1
+        percent: [0.005]
+        compactness: [20]
+        sigma: [1]
 
   dataset: # parameters depending on the class you defined for the dataset
     root: [dataset/generated/69023956/patches] # path to the dataset
+    test_root: [dataset/patches/512] 
     channels: *input_channels
     train_fields: [["000", "001", "002", "004"]]
+    test_fields: [["003"]]
     preprocess:
       mean: [[0.485, 0.456, 0.406]]
       std: [[0.229, 0.224, 0.225]]

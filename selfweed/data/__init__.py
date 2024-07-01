@@ -3,7 +3,12 @@ from sklearn.model_selection import train_test_split
 import torch
 import torchvision.transforms as T
 
-from selfweed.data.weedmap import SelfSupervisedWeedMapDataset, WeedMapDataset, ClassificationWeedMapDataset
+from selfweed.data.weedmap import (
+    SelfSupervisedWeedMapDataset,
+    WeedMapDataset,
+    ClassificationWeedMapDataset,
+)
+
 
 def get_preprocessing(dataset_params):
     preprocess_params = dataset_params.pop("preprocess")
@@ -25,32 +30,42 @@ def get_preprocessing(dataset_params):
     deprocess = T.Compose(
         [
             T.Normalize(
-                mean=[-m / s for m, s in zip(preprocess_params["mean"], preprocess_params["std"])],
+                mean=[
+                    -m / s
+                    for m, s in zip(preprocess_params["mean"], preprocess_params["std"])
+                ],
                 std=[1 / s for s in preprocess_params["std"]],
             ),
         ]
     )
     return transforms, target_transforms, deprocess
 
+
 def get_classification_dataloaders(dataset_params, dataloader_params, seed=42):
     dataset_params = deepcopy(dataset_params)
-    transforms, _, deprocess = get_preprocessing(dataset_params)
+    transforms, target_transforms, deprocess = get_preprocessing(dataset_params)
 
     if "train_fields" in dataset_params:
         train_params = deepcopy(dataset_params)
         train_params["fields"] = dataset_params["train_fields"]
         train_params.pop("train_fields")
+        train_params.pop("test_fields")
+        train_params.pop("test_root", None)
         train_set = ClassificationWeedMapDataset(
             **train_params,
             transform=transforms,
+            target_transform=target_transforms,
         )
         val_set = ClassificationWeedMapDataset(
             **train_params,
             transform=transforms,
+            target_transform=target_transforms,
         )
         index = train_set.index
 
-        train_index, val_index = train_test_split(index, test_size=0.2, random_state=seed)
+        train_index, val_index = train_test_split(
+            index, test_size=0.2, random_state=seed
+        )
         train_set.index = train_index
         val_set.index = val_index
 
@@ -70,7 +85,12 @@ def get_classification_dataloaders(dataset_params, dataloader_params, seed=42):
         train_loader = None
         val_loader = None
     dataset_params["return_ndvi"] = True
-    test_loader = get_testloader(dataset_params, dataloader_params, transforms, None)
+    test_loader = get_testloader(
+        dataset_params,
+        dataloader_params,
+        transforms,
+        target_transforms=target_transforms,
+    )
     return train_loader, val_loader, test_loader, deprocess
 
 
@@ -98,7 +118,9 @@ def get_dataloaders(dataset_params, dataloader_params, seed=42):
         )
         index = train_set.index
 
-        train_index, val_index = train_test_split(index, test_size=0.2, random_state=seed)
+        train_index, val_index = train_test_split(
+            index, test_size=0.2, random_state=seed
+        )
         train_set.index = train_index
         val_set.index = val_index
 
@@ -118,7 +140,9 @@ def get_dataloaders(dataset_params, dataloader_params, seed=42):
     else:
         train_loader = None
         val_loader = None
-    test_loader = get_testloader(dataset_params, dataloader_params, transforms, target_transforms)
+    test_loader = get_testloader(
+        dataset_params, dataloader_params, transforms, target_transforms
+    )
 
     return train_loader, val_loader, test_loader, deprocess
 
@@ -127,7 +151,10 @@ def get_testloader(dataset_params, dataloader_params, transforms, target_transfo
     test_params = deepcopy(dataset_params)
     test_params["fields"] = dataset_params["test_fields"]
     test_params.pop("test_fields")
-    test_params.pop("gt_folder")
+    test_params.pop("gt_folder", None)
+    if "test_root" in dataset_params:
+        test_params["root"] = dataset_params["test_root"]
+        test_params.pop("test_root")
     if "train_fields" in dataset_params:
         test_params.pop("train_fields")
 

@@ -26,12 +26,11 @@ class HoughSLICSegmentationWrapper(nn.Module):
             weedmap[patch] = label + 1
         return weedmap
         
-    def forward(self, data_dict: DataDict):
-        image = data_dict.image
+    def forward(self, image, ndvi=None):
         B, _, H, W = image.shape
-        if self.training:
+        if self.training or ndvi is None:
             return self.model(image)
-        mask = self.plant_detector(data_dict.ndvi)
+        mask = self.plant_detector(ndvi)
         slic = get_slic(image, self.slic_params)
         return self.segment(image, mask, slic)
 

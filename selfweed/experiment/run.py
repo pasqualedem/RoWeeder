@@ -377,6 +377,8 @@ class Run:
         metric_values = None
 
         for tot_steps, (batch_idx, batch_dict) in enumerate(bar):
+            if batch_idx == 10:
+                break
             batch_dict: DataDict
             self.optimizer.zero_grad()
             result_dict = self._forward(batch_dict, epoch, batch_idx)
@@ -446,6 +448,8 @@ class Run:
         self.tracker.create_prediction_sequence(phase)
         with torch.no_grad():
             for batch_idx, batch_dict in bar:
+                if batch_idx == 10:
+                    break
                 result_dict: ModelOutput = self.model(batch_dict)
                 outputs = result_dict.logits
                 preds = outputs.argmax(dim=1)
