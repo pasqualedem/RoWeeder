@@ -69,7 +69,9 @@ def get_classification_dataloaders(dataset_params, dataloader_params, seed=42):
     else:
         train_loader = None
         val_loader = None
-    return train_loader, val_loader, None, deprocess
+    dataset_params["return_ndvi"] = True
+    test_loader = get_testloader(dataset_params, dataloader_params, transforms, None)
+    return train_loader, val_loader, test_loader, deprocess
 
 
 def get_dataloaders(dataset_params, dataloader_params, seed=42):

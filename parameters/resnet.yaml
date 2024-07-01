@@ -6,6 +6,7 @@ experiment:
   start_from_grid: 0 # skip grids in the grid search
   start_from_run: 0 # skip runs from the selected grid
   task: classification # task to perform
+  test_task: segmentation
   search: grid
   # n_trials: 5
 
@@ -41,9 +42,17 @@ parameters:
           weight: 1.0
 
   model:
-    name: [resnet50] # path to model class or model name contained in EzDL or super-gradients
+    name: [seg-resnet50] # path to model class or model name contained in EzDL or super-gradients
     params:
       input_channels: &input_channels [['R', 'G', 'B']]
+      plant_detector_params:
+        name: NDVIDetector
+        params:
+          threshold: 0.1
+      slic_params:
+        percent: 0.005
+        compactness: 20
+        sigma: 1
 
   dataset: # parameters depending on the class you defined for the dataset
     root: [dataset/generated/69023956/patches] # path to the dataset
@@ -63,5 +72,11 @@ parameters:
       task: [binary]
   val_metrics:
     F1Score: *metric_params
+  test_metrics:
+    JaccardIndex: &test_metric_params
+      num_classes: [3]
+      task: [multiclass]
+      average: [macro]
+    F1Score: *test_metric_params
 
 other_grids:

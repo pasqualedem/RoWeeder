@@ -24,6 +24,8 @@ class AbstractLogger:
         self,
         experiment,
         accelerator: Accelerator,
+        task: str,
+        test_task: str = None,
         log_frequency: int = 100,
         train_image_log_frequency: int = 1000,
         val_image_log_frequency: int = 1000,
@@ -39,6 +41,8 @@ class AbstractLogger:
             "val": val_image_log_frequency,
             "test": test_image_log_frequency,
         }
+        self.task = task
+        self.test_task = test_task or task
         self.start_time = time.time()
         self.experiment_save_delta = experiment_save_delta
 

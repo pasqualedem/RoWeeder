@@ -1,9 +1,11 @@
+from selfweed.detector import HoughCropRowDetector, get_vegetation_detector
 from selfweed.models.pseudo import PseudoModel
 from selfweed.models.rowweeder import RowWeeder
 
 from transformers.models.segformer.modeling_segformer import SegformerForImageClassification, SegformerConfig, SegformerForSemanticSegmentation
 from transformers import ResNetForImageClassification
 
+from selfweed.models.segmentation import HoughSLICSegmentationWrapper
 from selfweed.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper
 from selfweed.data.weedmap import WeedMapDataset, ClassificationWeedMapDataset
 
@@ -46,15 +48,20 @@ def build_segformer(
 
 
 def build_resnet50(
-    input_channels
+    input_channels,
+    plant_detector_params,
+    slic_params,
 ):
-    return HuggingFaceClassificationWrapper(ResNetForImageClassification.from_pretrained(
+    classification_model = HuggingFaceClassificationWrapper(ResNetForImageClassification.from_pretrained(
         "microsoft/resnet-50",
         id2label=ClassificationWeedMapDataset.id2class,
         label2id={v: k for k,v in ClassificationWeedMapDataset.id2class.items()},
         ignore_mismatched_sizes=True,
-        )
-)
+        ))
+    plant_detector = get_vegetation_detector(
+        plant_detector_params["name"], plant_detector_params["params"]
+    )
+    return HoughSLICSegmentationWrapper(classification_model, plant_detector, slic_params)
 
 
 def build_pseudo_gt_model(

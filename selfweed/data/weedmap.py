@@ -24,6 +24,7 @@ class WeedMapDataset(Dataset):
         transform=None,
         target_transform=None,
         return_path=False,
+        return_ndvi=False, # Return NDVI as extra channel
     ):
         super().__init__()
         self.root = root
@@ -32,6 +33,7 @@ class WeedMapDataset(Dataset):
         self.target_transform = target_transform
         self.return_path = return_path
         self.fields = fields
+        self.return_ndvi = return_ndvi
 
         self.channels = channels
         if gt_folder is None:
@@ -72,6 +74,18 @@ class WeedMapDataset(Dataset):
         channels = torch.cat(channels).float()
         return self.transform(channels)
 
+    def _get_ndvi(self, field, filename):
+        nir_re_path = [
+            os.path.join(
+                self.root,
+                field,
+                ch,
+                filename
+            ) for ch in ["nir", "re"]
+        ]
+        nir_re = [torchvision.io.read_image(channel_path) for channel_path in nir_re_path]
+        return (nir_re[0] - nir_re[1]) / (nir_re[0] + nir_re[1])        
+
     def __getitem__(self, i):
         field, filename = self.index[i]
         gt_path = os.path.join(
@@ -86,6 +100,10 @@ class WeedMapDataset(Dataset):
         )
         if self.return_path:
             data_dict.name = gt_path
+        
+        if self.return_ndvi:
+            ndvi = self._get_ndvi(field, filename)
+            data_dict.ndvi = ndvi
         return data_dict
     
     

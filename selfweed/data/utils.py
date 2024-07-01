@@ -10,6 +10,7 @@ class DataDict(EasyDict):
     name: str
     crops: torch.tensor
     weeds: torch.tensor
+    ndvi: torch.tensor
 
 
 class LABELS(Enum):

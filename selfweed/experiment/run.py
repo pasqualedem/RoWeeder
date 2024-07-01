@@ -61,6 +61,7 @@ class Run:
         self.global_val_step = 0
         self.validation_json = None
         self.task = None
+        self.test_task = None
 
     def parse_params(self, params: dict):
         self.params = deepcopy(params)
@@ -90,7 +91,8 @@ class Run:
             mixed_precision=self.train_params.get("precision", None),
         )
         logger.info("Initiliazing tracker...")
-        self.task = self.params["experiment"].get("task", None)
+        self.task = self.params["experiment"]["task"]
+        self.test_task = self.params["experiment"].get("test_task", self.task)
         self.tracker = get_experiment_tracker(self.accelerator, self.params)
         self.url = self.tracker.url
         self.name = self.tracker.name
@@ -441,7 +443,7 @@ class Run:
             desc=desc,
             disable=not self.accelerator.is_local_main_process,
         )
-        self.tracker.create_image_sequence(f"{phase}_predictions")
+        self.tracker.create_prediction_sequence(phase)
         with torch.no_grad():
             for batch_idx, batch_dict in bar:
                 result_dict: ModelOutput = self.model(batch_dict)
@@ -480,7 +482,7 @@ class Run:
                 metrics=metrics_dict,
                 epoch=epoch,
             )
-        self.tracker.add_image_sequence(f"{phase}_predictions")
+        self.tracker.add_prediction_sequence(phase)
         self.accelerator.wait_for_everyone()
 
         metrics_value = self.val_metrics.compute()
@@ -500,7 +502,8 @@ class Run:
 
     def test(self):
         self.test_loader = self.accelerator.prepare(self.test_loader)
-        self._init_metrics(self.params, phase="val")
+        metric_phase = "test" if "test_metrics" in self.params else "val"
+        self._init_metrics(self.params, phase=metric_phase)
         with self.tracker.test():
             self.evaluate(self.test_loader, phase="test")
 

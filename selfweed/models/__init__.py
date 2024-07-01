@@ -5,7 +5,7 @@ MODEL_REGISTRY = {
     "segformer": build_segformer,
     "rw_segformer": build_roweeder_segformer,
     "pseudo_gt": build_pseudo_gt_model,
-    "resnet50": build_resnet50,
+    "seg-resnet50": build_resnet50,
 }
 
 

@@ -34,6 +34,9 @@ def wandb_experiment(accelerator: Accelerator, params: dict):
         "project_name": params["experiment"]["name"],
         "group": params["experiment"].get("group", None),
         "task": params["experiment"]["task"],
+        "test_task": params["experiment"].get(
+            "test_task", params["experiment"]["task"]
+        ),
         **logger_params,
     }
     wandb_logger = WandBLogger(**wandb_params)
@@ -97,7 +100,9 @@ class WandBLogger(AbstractLogger):
         if ignored_files:
             os.environ["WANDB_IGNORE_GLOBS"] = ignored_files
         if resume:
-            self._resume(offline_directory, run_id, checkpoint_type=resume_checkpoint_type)
+            self._resume(
+                offline_directory, run_id, checkpoint_type=resume_checkpoint_type
+            )
         experiment = None
         if kwargs["accelerator"].is_local_main_process:
             experiment = wandb.init(
@@ -119,7 +124,7 @@ class WandBLogger(AbstractLogger):
             wandb.define_metric("validate/step")
             # set all other validate/ metrics to use this step
             wandb.define_metric("validate/*", step_metric="validate/step")
-            
+
         super().__init__(experiment=experiment, **kwargs)
         if save_code:
             self._save_code()
@@ -129,7 +134,7 @@ class WandBLogger(AbstractLogger):
         self.save_logs_wandb = save_logs_remote
         self.context = ""
         self.sequences = {}
-                
+
     def _resume(self, offline_directory, run_id, checkpoint_type="latest"):
         if not offline_directory:
             offline_directory = "."
@@ -144,9 +149,11 @@ class WandBLogger(AbstractLogger):
                 logger.warning(run)
             logger.warning(f"Using {runs[0]}")
         run = runs[0]
-        self.accelerator_state_dir = os.path.join(wandb_dir, run, "files", checkpoint_type)
+        self.accelerator_state_dir = os.path.join(
+            wandb_dir, run, "files", checkpoint_type
+        )
         logger.info(f"Resuming from {self.accelerator_state_dir}")
-        
+
     def _save_code(self):
         """
         Save the current code to wandb.
@@ -189,8 +196,8 @@ class WandBLogger(AbstractLogger):
         wandb.config.update(config, allow_val_change=self.resume)
         tmp = os.path.join(self.local_dir, "config.yaml")
         write_yaml(config, tmp)
-        # self.add_file("config.yaml") 
-        
+        # self.add_file("config.yaml")
+
     @main_process_only
     def add_tags(self, tags):
         wandb.run.tags = wandb.run.tags + tuple(tags)
@@ -405,6 +412,18 @@ class WandBLogger(AbstractLogger):
         return None
 
     @main_process_only
+    def create_prediction_sequence(self, phase, columns=[]):
+        name = f"{phase}_predictions"
+        tracker_task = self.task if phase in ["train", "val"] else self.test_task
+        if tracker_task == "classification":
+            columns = ["Ground Truth", "Prediction"] + columns
+        self.create_image_sequence(name, columns)
+
+    @main_process_only
+    def add_prediction_sequence(self, phase):
+        self.add_image_sequence(f"{phase}_predictions")
+
+    @main_process_only
     def create_image_sequence(self, name, columns=[]):
         self.sequences[name] = wandb.Table(["ID", "Image"] + columns)
 
@@ -418,7 +437,7 @@ class WandBLogger(AbstractLogger):
     def add_image_sequence(self, name):
         wandb.log({f"{self.context}_{name}": self.sequences[name]})
         del self.sequences[name]
-        
+
     @main_process_only
     def log_prediction(
         self,
@@ -437,27 +456,40 @@ class WandBLogger(AbstractLogger):
             sample_gt = gt[b].detach().cpu().numpy()
             sample_pred = pred[b].detach().cpu().numpy()
 
+            if self.task == "segmentation":
+                kwargs = dict(
+                    masks={
+                        "ground_truth": {
+                            "mask_data": sample_gt,
+                            "class_labels": id2classes,
+                        },
+                        "prediction": {
+                            "mask_data": sample_pred,
+                            "class_labels": id2classes,
+                        },
+                    },
+                    classes=[{"id": c, "name": name} for c, name in id2classes.items()],
+                )
+                metadata = None
+            elif self.task == "classification":
+                kwargs = {}
+                metadata = [
+                    id2classes[sample_gt.item()],
+                    id2classes[sample_pred.item()],
+                ]
+            else:
+                raise ValueError(f"Task {self.task} not supported")
+
             wandb_image = wandb.Image(
                 image,
-                masks={
-                    "ground_truth": {
-                        "mask_data": sample_gt,
-                        "class_labels": id2classes,
-                    },
-                    "prediction": {
-                        "mask_data": sample_pred,
-                        "class_labels": id2classes,
-                    },
-                },
-                classes=[
-                    {"id": c, "name": name} for c, name in id2classes.items()
-                ],
+                **kwargs,
             )
 
             self.add_image_to_sequence(
                 f"{phase}_predictions",
                 f"image_{batch_idx}_sample_{b}",
                 wandb_image,
+                metadata=metadata,
             )
 
     @main_process_only
