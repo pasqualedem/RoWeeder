@@ -339,9 +339,11 @@ class Run:
         preds: torch.tensor,
         gt: torch.tensor,
         tot_steps,
+        phase="val",
     ):
+        phase_metrics = getattr(self, f"{phase}_metrics")
         self.tracker.log_metric("step", self.global_val_step)
-        return self._update_metrics(self.val_metrics, preds, gt, tot_steps)
+        return self._update_metrics(phase_metrics, preds, gt, tot_steps)
 
     def _update_train_metrics(
         self,
@@ -377,8 +379,6 @@ class Run:
         metric_values = None
 
         for tot_steps, (batch_idx, batch_dict) in enumerate(bar):
-            if batch_idx == 10:
-                break
             batch_dict: DataDict
             self.optimizer.zero_grad()
             result_dict = self._forward(batch_dict, epoch, batch_idx)
@@ -431,8 +431,9 @@ class Run:
         return self.evaluate(self.val_loader, epoch=epoch, phase="val")
 
     def evaluate(self, dataloader, epoch=None, phase="val"):
+        phase_metrics = getattr(self, f"{phase}_metrics")
         self.model.eval()
-        self.val_metrics.reset()
+        phase_metrics.reset()
 
         avg_loss = RunningAverage()
 
@@ -448,14 +449,12 @@ class Run:
         self.tracker.create_prediction_sequence(phase)
         with torch.no_grad():
             for batch_idx, batch_dict in bar:
-                if batch_idx == 10:
-                    break
                 result_dict: ModelOutput = self.model(batch_dict)
                 outputs = result_dict.logits
                 preds = outputs.argmax(dim=1)
 
                 metrics_value = self._update_val_metrics(
-                    preds, batch_dict.target, tot_steps
+                    preds, batch_dict.target, tot_steps, phase
                 )
                 loss = result_dict.loss.value
 
@@ -478,7 +477,7 @@ class Run:
                 self.global_val_step += 1
                 
             metrics_dict = {
-                **self.val_metrics.compute(),
+                **phase_metrics.compute(),
                 "loss": avg_loss.compute(),
             }
 
@@ -489,7 +488,7 @@ class Run:
         self.tracker.add_prediction_sequence(phase)
         self.accelerator.wait_for_everyone()
 
-        metrics_value = self.val_metrics.compute()
+        metrics_value = phase_metrics.compute()
         for k, v in metrics_value.items():
             if epoch is not None:
                 logger.info(f"{phase} epoch {epoch} - {k}: {v}")

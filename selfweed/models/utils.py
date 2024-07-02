@@ -37,8 +37,7 @@ class HuggingFaceWrapper(nn.Module):
         return self.model.parameters()
     
     
-class HuggingFaceClassificationWrapper(HuggingFaceWrapper):
-        
+class HuggingFaceClassificationWrapper(HuggingFaceWrapper):        
     def forward(self, image):
         B, _, H, W = image.shape
         hug_dict = {"pixel_values": image}

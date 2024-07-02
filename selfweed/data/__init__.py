@@ -44,6 +44,16 @@ def get_preprocessing(dataset_params):
 def get_classification_dataloaders(dataset_params, dataloader_params, seed=42):
     dataset_params = deepcopy(dataset_params)
     transforms, target_transforms, deprocess = get_preprocessing(dataset_params)
+    
+    
+    if "test_preprocess" in dataset_params:
+        dataset_params["preprocess"] = dataset_params["test_preprocess"]
+        dataset_params.pop("test_preprocess")
+        test_transforms, test_target_transforms, test_deprocess = get_preprocessing(dataset_params)
+    else:
+        test_transforms = transforms
+        test_target_transforms = target_transforms
+        test_deprocess = deprocess
 
     if "train_fields" in dataset_params:
         train_params = deepcopy(dataset_params)
@@ -88,8 +98,8 @@ def get_classification_dataloaders(dataset_params, dataloader_params, seed=42):
     test_loader = get_testloader(
         dataset_params,
         dataloader_params,
-        transforms,
-        target_transforms=target_transforms,
+        test_transforms,
+        target_transforms=test_target_transforms,
     )
     return train_loader, val_loader, test_loader, deprocess
 

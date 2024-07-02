@@ -27,7 +27,7 @@ SUBSET = "rededge"
 
 def get_vegetation_detector(detector_name, detector_params):
     if detector_name == "NDVIDetector":
-        return NDVIVegetationDetector(threshold=detector_params["threshold"])
+        return NDVIVegetationDetector(**detector_params)
 
 
 class HoughDetectorDict(Enum):
@@ -73,10 +73,10 @@ class HoughDetectorDict(Enum):
 
 
 class NDVIVegetationDetector:
-    def __init__(self, threshold=0.6) -> None:
+    def __init__(self, threshold=0.6, red_idx=0, nir_idx=3) -> None:
         self.threshold = threshold
-        self.nir_idx = 3
-        self.red_idx = 0
+        self.nir_idx = nir_idx
+        self.red_idx = red_idx
 
     def __call__(self, x) -> Any:
         x = x.cuda()

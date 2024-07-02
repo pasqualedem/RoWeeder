@@ -1,12 +1,16 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import torchvision.transforms.functional as FV
 
 from selfweed.data.utils import DataDict, crop_to_nonzero
 from selfweed.detector import HoughDetectorDict
 from selfweed.labeling import get_drawn_img, get_slic, label_from_row
+from selfweed.models.utils import ModelOutput
 
 class HoughSLICSegmentationWrapper(nn.Module):
+    classificator_size = (224, 224)
     def __init__(self, classification_model, plant_detector, slic_params) -> None:
         super().__init__()
         self.model = classification_model
@@ -15,24 +19,31 @@ class HoughSLICSegmentationWrapper(nn.Module):
         self.__repr__ = f"HoughSlicWrapper:\n{self.model.__repr__}"
         
     def segment(self, image, mask, slic):
-        weedmap = mask.clone()
+        weedmap = mask.clone().long()
         slic_mask = slic * mask
         unique_slic = slic_mask.unique()
         for u in unique_slic[1:]:
             patch = slic_mask == u
             img_masked = image * patch
             img_patch = crop_to_nonzero(img_masked)
-            label = self.model(img_patch)
-            weedmap[patch] = label + 1
+            img_patch = FV.resize(img_patch, self.classificator_size).unsqueeze(0)
+            logits = self.model(img_patch).logits
+            label = logits.argmax(dim=1) + 1
+            weedmap[patch] = label
+        weedmap = F.one_hot(weedmap, num_classes=3).permute(0, 3, 1, 2).float()
         return weedmap
         
     def forward(self, image, ndvi=None):
-        B, _, H, W = image.shape
         if self.training or ndvi is None:
             return self.model(image)
-        mask = self.plant_detector(ndvi)
-        slic = get_slic(image, self.slic_params)
-        return self.segment(image, mask, slic)
+        B, _, H, W = image.shape
+        segmentations = []
+        for i in range(image.shape[0]):
+            rgb_nir = torch.cat([image[i], ndvi[i]], dim=0)
+            mask = self.plant_detector(rgb_nir)
+            slic = torch.tensor(get_slic(image[i], self.slic_params), device=mask.device)
+            segmentations.append(self.segment(image[i], mask, slic))
+        return ModelOutput(logits=torch.cat(segmentations), scores=None)
 
     def get_learnable_params(self, train_params):
         return self.model.get_learnable_params(train_params)

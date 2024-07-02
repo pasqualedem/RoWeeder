@@ -450,13 +450,13 @@ class WandBLogger(AbstractLogger):
     ):
         if not log_every_n(batch_idx, self.prefix_frequency_dict[phase]):
             return
-
+        tracker_task = self.task if phase in {"train", "val"} else self.test_task
         for b in range(gt.shape[0]):
             image = images[b].permute(1, 2, 0).detach().cpu().numpy()
             sample_gt = gt[b].detach().cpu().numpy()
             sample_pred = pred[b].detach().cpu().numpy()
 
-            if self.task == "segmentation":
+            if tracker_task == "segmentation":
                 kwargs = dict(
                     masks={
                         "ground_truth": {
@@ -470,8 +470,8 @@ class WandBLogger(AbstractLogger):
                     },
                     classes=[{"id": c, "name": name} for c, name in id2classes.items()],
                 )
-                metadata = None
-            elif self.task == "classification":
+                metadata = []
+            elif tracker_task == "classification":
                 kwargs = {}
                 metadata = [
                     id2classes[sample_gt.item()],

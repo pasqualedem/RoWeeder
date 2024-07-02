@@ -61,7 +61,7 @@ def get_slic(img, slic_params):
     Returns:
         numpy.ndarray: The SLIC segmentation.
     """
-    img = img.permute(1, 2, 0).numpy()
+    img = img.permute(1, 2, 0).cpu().numpy()
     slic_params = deepcopy(slic_params)
     N = int(np.prod(img.shape[:-1]) * slic_params.pop("percent"))
     slic_params["n_segments"] = N
