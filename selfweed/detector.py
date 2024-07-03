@@ -78,9 +78,12 @@ class NDVIVegetationDetector:
         self.nir_idx = nir_idx
         self.red_idx = red_idx
 
-    def __call__(self, x) -> Any:
-        x = x.cuda()
-        ndvi = (x[self.nir_idx] - x[self.red_idx]) / (x[self.nir_idx] + x[self.red_idx])
+    def __call__(self, image=None, ndvi=None) -> Any:
+        if ndvi is not None:
+            ndvi = ndvi.cuda()
+        else:
+            image = image.cuda()
+            ndvi = (image[self.nir_idx] - image[self.red_idx]) / (image[self.nir_idx] + image[self.red_idx])
         return ((ndvi > self.threshold).type(torch.uint8) * 255).unsqueeze(0)
 
     def __repr__(self) -> str:

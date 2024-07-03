@@ -39,8 +39,7 @@ class HoughSLICSegmentationWrapper(nn.Module):
         B, _, H, W = image.shape
         segmentations = []
         for i in range(image.shape[0]):
-            rgb_nir = torch.cat([image[i], ndvi[i]], dim=0)
-            mask = self.plant_detector(rgb_nir)
+            mask = self.plant_detector(ndvi=ndvi[i])[0]
             slic = torch.tensor(get_slic(image[i], self.slic_params), device=mask.device)
             segmentations.append(self.segment(image[i], mask, slic))
         return ModelOutput(logits=torch.cat(segmentations), scores=None)

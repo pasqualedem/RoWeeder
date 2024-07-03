@@ -14,6 +14,7 @@ def get_preprocessing(dataset_params):
     preprocess_params = dataset_params.pop("preprocess")
     transforms = T.Compose(
         [
+            lambda x: x.float() / 255.0,
             T.Normalize(
                 mean=torch.tensor(preprocess_params["mean"]),
                 std=torch.tensor(preprocess_params["std"]),
@@ -36,6 +37,7 @@ def get_preprocessing(dataset_params):
                 ],
                 std=[1 / s for s in preprocess_params["std"]],
             ),
+            lambda x: x * 255.0,
         ]
     )
     return transforms, target_transforms, deprocess

@@ -46,7 +46,7 @@ class WeedMapDataset(Dataset):
                 field: os.path.join(gt_folder, field) for field in self.fields
             }
             for k, v in self.gt_folders.items():
-                if os.path.isdir(v):
+                if os.path.isdir(os.path.join(v, os.listdir(v)[0])):
                     self.gt_folders[k] = os.path.join(v, "groundtruth") 
             
         self.index = [
@@ -78,16 +78,16 @@ class WeedMapDataset(Dataset):
         return self.transform(channels)
 
     def _get_ndvi(self, field, filename):
-        nir_re_path = [
+        nir_red_path = [
             os.path.join(
                 self.root,
                 field,
                 ch,
                 filename
-            ) for ch in ["NIR", "RE"]
+            ) for ch in ["NIR", "R"]
         ]
-        nir_re = [torchvision.io.read_image(channel_path) for channel_path in nir_re_path]
-        return (nir_re[0] - nir_re[1]) / (nir_re[0] + nir_re[1])        
+        nir_red = [torchvision.io.read_image(channel_path).float() for channel_path in nir_red_path]
+        return (nir_red[0] - nir_red[1]) / (nir_red[0] + nir_red[1])        
 
     def __getitem__(self, i):
         field, filename = self.index[i]
