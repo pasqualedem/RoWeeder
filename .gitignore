@@ -2,6 +2,7 @@
 dataset
 venv
 wandb
+wandb_cache
 out
 
 *.pth

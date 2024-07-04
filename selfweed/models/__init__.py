@@ -1,4 +1,4 @@
-from selfweed.models.build import build_pseudo_gt_model, build_roweeder_segformer, build_segformer, build_resnet50
+from selfweed.models.build import build_pseudo_gt_model, build_pyramidformer, build_roweeder_segformer, build_segformer, build_resnet50
 
 
 MODEL_REGISTRY = {
@@ -6,6 +6,7 @@ MODEL_REGISTRY = {
     "rw_segformer": build_roweeder_segformer,
     "pseudo_gt": build_pseudo_gt_model,
     "seg-resnet50": build_resnet50,
+    "pyramidformer": build_pyramidformer,
 }
 
 
