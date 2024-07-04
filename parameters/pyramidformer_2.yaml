@@ -1,0 +1,73 @@
+experiment:
+  # It contains all the about the grids and the group of runs:
+  name: RowWeed # name of the logger platform experiment
+  group: PyramidFormer # name of group of experiments for the logger platform
+  continue_with_errors: False # continue with other runs even if a run fails
+  start_from_grid: 0 # skip grids in the grid search
+  start_from_run: 0 # skip runs from the selected grid
+  search: grid
+  task: segmentation
+  # n_trials: 5
+
+parameters:
+  # Contains the parameters to build the grid.
+  # Each value should be a dict or a list
+  seed: &seed [42] # random seed to set
+
+  tracker:
+    ignored_files: ["*.bin,*.safetensors"]
+    cache_directory: [wandb_cache]
+    train_image_log_frequency: [20]
+    val_image_log_frequency: [10]
+    test_image_log_frequency: [10]
+    tags: [[Focal, Pyramid]]
+
+  train:
+    max_epochs: [40, 50]
+    compile: [False]
+    initial_lr: [0.001, 0.0001]
+    optimizer: [AdamW]
+    # scheduler:
+    #   type: [reduce_lr_on_plateau]
+    #   step_moment: [epoch]
+    #   patience: [0]
+    watch_metric: [F1Score]
+    freeze_backbone: [False]
+    check_nan: [1] # check for nan every n batches
+
+  loss:
+    class_weighting: [True]
+    components:
+      - focal:
+          weight: 1.0
+
+  model:
+    name: [pyramidformer] # path to model class or model name contained in EzDL or super-gradients
+    params:
+      input_channels: &input_channels [['R', 'G', 'B']]
+
+  dataset: # parameters depending on the class you defined for the dataset
+    root: [dataset/patches/512] # path to the dataset
+    gt_folder: [dataset/generated/69023956/pseudogt] # path to the gt folder
+    channels: *input_channels
+    train_fields: [["000", "001", "002", "004"]]
+    test_fields: [["003"]]
+    preprocess:
+      mean: [[0.485, 0.456, 0.406]]
+      std: [[0.229, 0.224, 0.225]]
+
+  dataloader:
+    num_workers: [0]
+    batch_size: [2]
+
+  train_metrics:
+    JaccardIndex: &metric_params
+      num_classes: [3]
+      task: [multiclass]
+      average: [macro]
+    F1Score: *metric_params
+  val_metrics:
+    JaccardIndex: *metric_params
+    F1Score: *metric_params
+
+other_grids:
