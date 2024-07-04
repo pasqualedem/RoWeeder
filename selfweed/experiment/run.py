@@ -505,8 +505,10 @@ class Run:
 
     def test(self):
         self.test_loader = self.accelerator.prepare(self.test_loader)
-        metric_phase = "test" if "test_metrics" in self.params else "val"
-        self._init_metrics(self.params, phase=metric_phase)
+        if "test_metrics" in self.params:
+            self._init_metrics(self.params, phase="test")
+        else:
+            self.test_metrics = self.val_metrics
         with self.tracker.test():
             self.evaluate(self.test_loader, phase="test")
 

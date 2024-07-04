@@ -29,18 +29,20 @@ def build_rowweeder_model(
 def build_roweeder_segformer(
     input_channels,
     transformer_layers=4,
-    embedding_size=(1, )
+    embedding_size=(1, ),
+    version="nvidia/mit-b0"
 ):
-    encoder = SegformerForImageClassification.from_pretrained("nvidia/mit-b0")
-    embeddings_dims = SegformerConfig.from_pretrained("nvidia/mit-b0").hidden_sizes
+    encoder = SegformerForImageClassification.from_pretrained(version)
+    embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
     encoder = encoder.segformer.encoder
     return build_rowweeder_model(encoder, input_channels, embedding_size, embeddings_dims, transformer_layers)
 
 def build_segformer(
-    input_channels
+    input_channels,
+    version="nvidia/mit-b0"
 ):
     segformer = SegformerForSemanticSegmentation.from_pretrained(
-        "nvidia/mit-b0",
+        version,
         id2label=WeedMapDataset.id2class,
         label2id={v: k for k,v in WeedMapDataset.id2class.items()}
         )

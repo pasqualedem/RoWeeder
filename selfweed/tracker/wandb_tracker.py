@@ -54,6 +54,7 @@ class WandBLogger(AbstractLogger):
         project_name: str,
         resume: bool = False,
         offline_directory: str = None,
+        cache_directory: str = None,
         save_checkpoints_remote: bool = True,
         save_tensorboard_remote: bool = True,
         save_logs_remote: bool = True,
@@ -90,13 +91,18 @@ class WandBLogger(AbstractLogger):
                 tags = []
             tags = tags + ["resume", run_id]
         self.accelerator_state_dir = None
-        if offline_directory:
-            os.makedirs(offline_directory, exist_ok=True)
-            os.environ["WANDB_ARTIFACT_LOCATION"] = offline_directory
-            os.environ["WANDB_ARTIFACT_DIR"] = offline_directory
-            os.environ["WANDB_CACHE_DIR"] = offline_directory
-            os.environ["WANDB_CONFIG_DIR"] = offline_directory
-            os.environ["WANDB_DATA_DIR"] = offline_directory
+        if cache_directory:
+            os.makedirs(cache_directory, exist_ok=True)
+            os.environ["WANDB_ARTIFACT_LOCATION"] = os.path.join(cache_directory, "artifacts")
+            os.makedirs(os.path.join(cache_directory, "artifacts"), exist_ok=True)
+            os.environ["WANDB_ARTIFACT_DIR"] = os.path.join(cache_directory, "artifacts")
+            os.makedirs(os.path.join(cache_directory, "cache"), exist_ok=True)
+            os.environ["WANDB_CACHE_DIR"] = os.path.join(cache_directory, "cache")
+            os.makedirs(os.path.join(cache_directory, "config"), exist_ok=True)
+            os.environ["WANDB_CONFIG_DIR"] = os.path.join(cache_directory, "config")
+            os.makedirs(os.path.join(cache_directory, "data"), exist_ok=True)
+            os.environ["WANDB_DATA_DIR"] = os.path.join(cache_directory, "data")
+            os.makedirs(os.path.join(cache_directory, "media"), exist_ok=True)
         if ignored_files:
             os.environ["WANDB_IGNORE_GLOBS"] = ignored_files
         if resume:
