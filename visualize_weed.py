@@ -28,10 +28,9 @@ def change_state(src, dest):
 
 
 @st.cache_resource
-def get_vegetation_detector(checkpoint, ndvi_threshold=0.5):
+def get_vegetation_detector(ndvi_threshold=0.5):
     name = st.session_state["vegetation_detector"]
     params = {
-        "checkpoint": checkpoint,
         "threshold": ndvi_threshold,
     }
     return get_vegetation_detector_fn(name, params)
@@ -82,8 +81,8 @@ def display_prediction():
 
     col1, col2, col3 = st.columns(3)
     data_dict = st_state["dataset"][i]
-    img = data_dict[DataDict.image]
-    gt = data_dict[DataDict.target]
+    img = data_dict.image
+    gt = data_dict.target
 
     mask = st.session_state["labeller"](img)
     st.write(mask.shape)
@@ -107,14 +106,13 @@ def display_prediction():
     gt = gt_fix(torch.tensor(np.array(gt))).cuda()
 
     to_draw_gt = (gt.cpu().numpy()).astype(np.uint8)
-    to_draw_gt = map_grayscale_to_rgb(to_draw_gt).transpose(2, 0, 1)
-    line_gt = get_drawn_img(to_draw_gt, lines, color=(255, 0, 255))
+    to_draw_gt = map_grayscale_to_rgb(to_draw_gt)
     to_draw_mask = mask.cpu().numpy().astype(np.uint8)
     line_mask = get_drawn_img(
         torch.zeros_like(torch.tensor(to_draw_mask)).numpy(), lines, color=(255, 0, 255)
     )
     argmask = mask[0].type(torch.uint8)
-    weed_map = label_from_row(argmask, torch.tensor(line_mask).permute(2, 0, 1)[0])
+    weed_map, slic = label_from_row(img, argmask, torch.tensor(line_mask).permute(2, 0, 1)[0])
     f1 = f1_score(
         weed_map.argmax(dim=0).cuda(),
         gt,
@@ -129,7 +127,7 @@ def display_prediction():
     ).transpose(2, 0, 1)
     weed_map = get_drawn_img(weed_map, lines, color=(255, 0, 255))
 
-    st.write(data_dict[DataDict.name])
+    st.write(data_dict.name)
     st.write("f1 score: ", f1)
     st.write("uniform_significance: ", uniform_significance)
     st.write("zero_reason: ", zero_reason)
@@ -142,7 +140,7 @@ def display_prediction():
         st.image(output_img, width=300)
     with col2:
         st.write("## GT")
-        st.image(Image.fromarray(line_gt), width=300)
+        st.image(Image.fromarray(to_draw_gt), width=300)
     with col3:
         st.write("## Prediction")
         st.image(weed_map, width=300)
@@ -209,13 +207,8 @@ if __name__ == "__main__":
             value=0.6,
             key="ndvi_threshold",
         )
-        checkpoint = st.text_input(
-            value="checkpoints/SplitLawin_B1_RedEdge_RGBNIRRE.pth",
-            label="checkpoint",
-            key="checkpoint",
-        )
         st.session_state["labeller"] = get_vegetation_detector(
-            checkpoint, ndvi_threshold=ndvi_threshold
+            ndvi_threshold=ndvi_threshold
         )
     col1, col2 = st.columns(2)
     with col1:

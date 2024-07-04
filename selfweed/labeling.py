@@ -46,7 +46,7 @@ def get_drawn_img(img, theta_rho, color=(255, 255, 255)):
         y0 = b * rho
         pt1 = (int(x0 + 1000 * (-b)), int(y0 + 1000 * (a)))
         pt2 = (int(x0 - 1000 * (-b)), int(y0 - 1000 * (a)))
-        cv2.line(draw_img, pt1, pt2, color, 2, cv2.LINE_AA)
+        cv2.line(draw_img, pt1, pt2, color, 4, cv2.LINE_AA)
     return draw_img
 
 
@@ -62,10 +62,10 @@ def get_slic(img, slic_params):
         numpy.ndarray: The SLIC segmentation.
     """
     img = img.permute(1, 2, 0).cpu().numpy()
-    slic_params = deepcopy(slic_params)
-    N = int(np.prod(img.shape[:-1]) * slic_params.pop("percent"))
-    slic_params["n_segments"] = N
-    slic = ski.segmentation.slic(img[:, :, :3], **slic_params)
+    slic_params_cp = deepcopy(slic_params)
+    N = int(np.prod(img.shape[:-1]) * slic_params_cp.pop("percent"))
+    slic_params_cp["n_segments"] = N
+    slic = ski.segmentation.slic(img[:, :, :3], **slic_params_cp)
     return slic
 
 
@@ -121,6 +121,8 @@ def label_from_row(img, mask, row_image, slic_params=None):
     weeds = conn_components * (~crop_mask)
     background = conn_components == 0
     weedmap = torch.stack([background, crops, weeds])
+    if slic_params is None:
+        return weedmap, []
     slic = get_slic(img, slic_params)
     patches = get_patches(img, weedmap, slic)
     return weedmap, patches
