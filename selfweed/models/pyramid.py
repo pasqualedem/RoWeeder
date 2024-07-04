@@ -46,7 +46,7 @@ class PyramidFuser(nn.Module):
         if fusion == "concat":
             dim_input = dim_shallow + dim_deep
         elif fusion == "add":
-            dim_input = dim_shallow 
+            dim_input = dim_deep 
         self.fuse_conv = nn.Conv2d(dim_input, dim_shallow, kernel_size=1)
         self.spatial_fuse = nn.Conv2d(dim_shallow, dim_shallow, kernel_size=3, padding=1)
         self.activation = getattr(nn, activation)()
@@ -55,10 +55,10 @@ class PyramidFuser(nn.Module):
         x_deep = F.interpolate(x_deep, size=x_shallow.shape[-2:], mode="bilinear", align_corners=False)
         if self.fusion == "concat":
             x = torch.cat([x_shallow, x_deep], dim=1)
+            x = self.fuse_conv(x)
         elif self.fusion == "add":
             x_deep = self.fuse_conv(x_deep)
             x = x_shallow + x_deep
-        x = self.fuse_conv(x)
         x = self.spatial_fuse(x)
         x = self.activation(x)
         return x
