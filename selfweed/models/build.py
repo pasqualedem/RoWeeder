@@ -7,6 +7,7 @@ from transformers import ResNetForImageClassification
 
 from selfweed.models.segmentation import HoughSLICSegmentationWrapper
 from selfweed.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper
+from selfweed.models.pyramid import PyramidFormer
 from selfweed.data.weedmap import WeedMapDataset, ClassificationWeedMapDataset
 
 def build_rowweeder_model(
@@ -36,6 +37,17 @@ def build_roweeder_segformer(
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
     encoder = encoder.segformer.encoder
     return build_rowweeder_model(encoder, input_channels, embedding_size, embeddings_dims, transformer_layers)
+
+
+def build_pyramidformer(
+    input_channels,
+    version="nvidia/mit-b0"
+):
+    encoder = SegformerForImageClassification.from_pretrained(version)
+    embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
+    num_classes = len(WeedMapDataset.id2class)
+    return PyramidFormer(encoder, embeddings_dims, num_classes)
+
 
 def build_segformer(
     input_channels,
