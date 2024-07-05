@@ -46,7 +46,7 @@ class PyramidFormer(nn.Module):
 
 
 class PyramidFuser(nn.Module):
-    def __init__(self, dim_deep, dim_shallow, activation="GELU", fusion="concat"):
+    def __init__(self, dim_deep, dim_shallow, activation="GELU", fusion="concat", upsampling="interpolate"):
         super().__init__()
         self.fusion = fusion
         if fusion == "concat":
@@ -58,6 +58,12 @@ class PyramidFuser(nn.Module):
             dim_shallow, dim_shallow, kernel_size=3, padding=1
         )
         self.activation = getattr(nn, activation)()
+        if upsampling == "interpolate":
+            self.upsample = lambda x: F.interpolate(
+                x, scale_factor=2, mode="bilinear", align_corners=False
+            )
+        elif upsampling == "deconv":
+            self.upsample = nn.ConvTranspose2d(dim_deep, dim_deep, kernel_size=4, stride=2, padding=1)
 
     def forward(self, x_shallow, x_deep):
         x_deep = F.interpolate(
