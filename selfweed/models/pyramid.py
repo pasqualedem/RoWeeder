@@ -62,3 +62,59 @@ class PyramidFuser(nn.Module):
         x = self.spatial_fuse(x)
         x = self.activation(x)
         return x
+    
+class MLFFormer(nn.Module):
+    def __init__(
+        self,
+        encoder,
+        embedding_dims,
+        num_classes,
+        fusion="concat",
+    ) -> None:
+        super().__init__()
+        self.encoder = encoder
+        self.embedding_dims = embedding_dims
+        
+        self.mlf_fuser = MLFuser(embedding_dims, fusion=fusion)
+        self.classifier = nn.Conv2d(embedding_dims[0], num_classes, kernel_size=1)
+        
+    def forward(self, image):
+        B, _, H, W = image.shape
+        hidden_states = self.encoder(image, output_hidden_states=True).hidden_states
+        x = self.mlf_fuser(hidden_states)
+        logits = self.classifier(x)
+        logits = F.interpolate(logits, size=(H, W), mode="bilinear")
+        return RowWeederModelOutput(logits=logits, scores=None)
+    
+    def get_learnable_params(self, train_params):
+        if train_params.get("freeze_encoder", False):
+            for param in self.encoder.parameters():
+                param.requires_grad = False
+        params = filter(lambda p: p.requires_grad, self.parameters())
+        return [{"params": params}]
+    
+class MLFuser(nn.Module):
+    def __init__(self, embedding_dims, activation="GELU", fusion="concat"):
+        super().__init__()
+        self.fusion = fusion
+        if fusion == "concat":
+            self.fuse_conv = nn.Conv2d(sum(embedding_dims), embedding_dims[0], kernel_size=1)
+        elif fusion == "add":
+            self.fuse_conv = nn.ModuleList([
+                nn.Conv2d(dim, embedding_dims[0], kernel_size=1) for dim in embedding_dims
+            ])
+        self.spatial_fuse = nn.Conv2d(embedding_dims[0], embedding_dims[0], kernel_size=3, padding=1)
+        self.activation = getattr(nn, activation)()
+        
+    def forward(self, x):
+        x = [
+            F.interpolate(x_i, size=x[0].shape[-2:], mode="bilinear", align_corners=False) for x_i in x
+        ]
+        if self.fusion == "concat":
+            x = torch.cat(x, dim=1)
+            x = self.fuse_conv(x)
+        elif self.fusion == "add":
+            x = sum([conv(x_i) for conv, x_i in zip(self.fuse_conv, x)])
+        x = self.spatial_fuse(x)
+        x = self.activation(x)
+        return x
