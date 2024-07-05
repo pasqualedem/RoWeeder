@@ -63,7 +63,7 @@ class PyramidFuser(nn.Module):
         x = self.activation(x)
         return x
     
-class MLFFormer(nn.Module):
+class MLFormer(nn.Module):
     def __init__(
         self,
         encoder,
