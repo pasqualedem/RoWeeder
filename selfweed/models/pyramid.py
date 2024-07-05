@@ -12,6 +12,7 @@ class PyramidFormer(nn.Module):
         embedding_dims,
         num_classes,
         fusion="concat",
+        upsampling="interpolate",
     ) -> None:
         super().__init__()
         self.encoder = encoder
@@ -19,7 +20,7 @@ class PyramidFormer(nn.Module):
 
         self.pyramid_fusers = nn.ModuleList(
             [
-                PyramidFuser(dim_shallow, dim_deep, fusion=fusion)
+                PyramidFuser(dim_shallow, dim_deep, fusion=fusion, upsampling=upsampling)
                 for dim_shallow, dim_deep in zip(
                     embedding_dims[::-1], embedding_dims[::-1][1:]
                 )
@@ -66,9 +67,7 @@ class PyramidFuser(nn.Module):
             self.upsample = nn.ConvTranspose2d(dim_deep, dim_deep, kernel_size=4, stride=2, padding=1)
 
     def forward(self, x_shallow, x_deep):
-        x_deep = F.interpolate(
-            x_deep, size=x_shallow.shape[-2:], mode="bilinear", align_corners=False
-        )
+        x_deep = self.upsample(x_deep)
         if self.fusion == "concat":
             x = torch.cat([x_shallow, x_deep], dim=1)
             x = self.fuse_conv(x)
