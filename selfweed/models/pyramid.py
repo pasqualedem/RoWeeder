@@ -95,12 +95,13 @@ class MLFormer(nn.Module):
         fusion="concat",
         upsampling="interpolate",
         spatial_conv=True,
+        scale_factors=[2, 4, 8],
     ) -> None:
         super().__init__()
         self.encoder = encoder
         self.embedding_dims = embedding_dims
 
-        self.mlf_fuser = MLFuser(embedding_dims, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
+        self.mlf_fuser = MLFuser(embedding_dims, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv, scale_factors=scale_factors)
         self.classifier = nn.Conv2d(embedding_dims[0], num_classes, kernel_size=1)
 
     def forward(self, image):
@@ -127,6 +128,7 @@ class MLFuser(nn.Module):
         fusion="concat",
         upsampling="interpolate",
         spatial_conv=True,
+        scale_factors=[2, 4, 8],
     ):
         super().__init__()
         self.fusion = fusion
@@ -150,10 +152,10 @@ class MLFuser(nn.Module):
         self.activation = getattr(nn, activation)()
         if upsampling == "interpolate":
             self.upsample = [
-                lambda x, k=k: F.interpolate(
-                    x, scale_factor=2 ** (k + 1), mode="bilinear", align_corners=False
+                lambda x, scale=scale: F.interpolate(
+                    x, scale_factor=scale, mode="bilinear", align_corners=False
                 )
-                for k in range(len(embedding_dims) - 1)
+                for scale in scale_factors
             ]
         elif upsampling == "deconv":
             self.upsample = nn.ModuleList(

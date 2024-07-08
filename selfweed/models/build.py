@@ -3,7 +3,7 @@ from selfweed.models.pseudo import PseudoModel
 from selfweed.models.rowweeder import RowWeeder
 
 from transformers.models.segformer.modeling_segformer import SegformerForImageClassification, SegformerConfig, SegformerForSemanticSegmentation
-from transformers import ResNetForImageClassification, SwinForImageClassification, SwinConfig
+from transformers import ResNetForImageClassification, SwinModel, SwinConfig
 
 from selfweed.models.segmentation import HoughSLICSegmentationWrapper
 from selfweed.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper
@@ -86,14 +86,18 @@ def build_swinmlformer(
     fusion="concat",
     upsampling="interpolate",
     spatial_conv=True,
-    blocks=4
+    blocks=5,
 ):
-    encoder = SwinForImageClassification.from_pretrained(version)
+    encoder = SwinModel.from_pretrained(version)
     config = SwinConfig.from_pretrained(version)
-    embeddings_dims = [config.embed_dim * (2**i) for i in range(blocks)]
+    emb_range = min(blocks, 4)
+    embeddings_dims = [config.embed_dim * (2**i) for i in range(emb_range)]
+    if blocks > 4:
+        embeddings_dims += embeddings_dims[-1:]
     embeddings_dims = embeddings_dims[:blocks]
+    scale_factors = [2, 4, 8, 8][:blocks]
     num_classes = len(WeedMapDataset.id2class)
-    return MLFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
+    return MLFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv, scale_factors=scale_factors)
 
 
 def build_resnet50(
