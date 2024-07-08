@@ -13,10 +13,12 @@ class PyramidFormer(nn.Module):
         num_classes,
         fusion="concat",
         upsampling="interpolate",
+        blocks=4,
     ) -> None:
         super().__init__()
         self.encoder = encoder
         self.embedding_dims = embedding_dims
+        self.blocks = blocks
 
         self.pyramid_fusers = nn.ModuleList(
             [
@@ -31,6 +33,8 @@ class PyramidFormer(nn.Module):
     def forward(self, image):
         B, _, H, W = image.shape
         hidden_states = self.encoder(image, output_hidden_states=True).hidden_states
+        if len(hidden_states) > self.blocks + 1:
+            hidden_states = hidden_states[:self.blocks]
         x = hidden_states[-1]
         for i, fuser in enumerate(self.pyramid_fusers):
             x = fuser(hidden_states[-i - 2], x)

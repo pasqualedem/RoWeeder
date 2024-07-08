@@ -43,12 +43,14 @@ def build_pyramidformer(
     input_channels,
     version="nvidia/mit-b0",
     fusion="concat",
-    upsampling="interpolate"
+    upsampling="interpolate",
+    blocks=4
 ):
     encoder = SegformerForImageClassification.from_pretrained(version)
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
+    embeddings_dims = embeddings_dims[:blocks]
     num_classes = len(WeedMapDataset.id2class)
-    return PyramidFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling)
+    return PyramidFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, blocks=blocks)
 
 
 def build_mlformer(
