@@ -48,7 +48,7 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["experiment", "--parameters", "parameters/pyramidformer.yaml"]
+            "args": ["experiment", "--parameters", "parameters/swinmlformer.yaml"]
         },
         {
             "name": "Pseudo Test",

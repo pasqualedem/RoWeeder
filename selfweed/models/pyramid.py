@@ -1,6 +1,9 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from einops import rearrange
 
 from selfweed.models.utils import RowWeederModelOutput
 
@@ -166,12 +169,16 @@ class MLFuser(nn.Module):
             raise ValueError(f"Unknown upsampling method {upsampling}")
 
     def forward(self, x):
+        if len(x[0].shape) == 3: # Have to reshape
+            shapes = [int(math.sqrt(x_i.shape[1])) for x_i in x]
+            x = [rearrange(x_i, "b (h w) c -> b c h w", h=shape, w=shape) for x_i, shape in zip(x, shapes)]
+
         x = [x[0]] + [upsample(x_i) for upsample, x_i in zip(self.upsample, x[1:])]
         if self.fusion == "concat":
             x = torch.cat(x, dim=1)
             x = self.fuse_conv(x)
         elif self.fusion == "add":
-            x = sum([conv(x_i) for conv, x_i in zip(self.fuse_conv, x)])
+            x = sum(conv(x_i) for conv, x_i in zip(self.fuse_conv, x))
         x = self.spatial_fuse(x)
         x = self.activation(x)
         return x

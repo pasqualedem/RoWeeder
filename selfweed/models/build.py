@@ -3,7 +3,7 @@ from selfweed.models.pseudo import PseudoModel
 from selfweed.models.rowweeder import RowWeeder
 
 from transformers.models.segformer.modeling_segformer import SegformerForImageClassification, SegformerConfig, SegformerForSemanticSegmentation
-from transformers import ResNetForImageClassification
+from transformers import ResNetForImageClassification, SwinForImageClassification, SwinConfig
 
 from selfweed.models.segmentation import HoughSLICSegmentationWrapper
 from selfweed.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper
@@ -78,6 +78,22 @@ def build_segformer(
         label2id={v: k for k,v in WeedMapDataset.id2class.items()}
         )
     return HuggingFaceWrapper(segformer)
+
+
+def build_swinmlformer(
+    input_channels,
+    version="microsoft/swin-tiny-patch4-window7-224",
+    fusion="concat",
+    upsampling="interpolate",
+    spatial_conv=True,
+    blocks=4
+):
+    encoder = SwinForImageClassification.from_pretrained(version)
+    config = SwinConfig.from_pretrained(version)
+    embeddings_dims = [config.embed_dim * (2**i) for i in range(blocks)]
+    embeddings_dims = embeddings_dims[:blocks]
+    num_classes = len(WeedMapDataset.id2class)
+    return MLFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
 
 
 def build_resnet50(
