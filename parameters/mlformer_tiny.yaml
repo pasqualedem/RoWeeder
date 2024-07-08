@@ -20,7 +20,7 @@ parameters:
     train_image_log_frequency: [20]
     val_image_log_frequency: [10]
     test_image_log_frequency: [10]
-    tags: [[Focal, ML]]
+    tags: [[ML, Tiny]]
 
   train:
     max_epochs: [30]
@@ -46,7 +46,7 @@ parameters:
     params:
       input_channels: &input_channels [['R', 'G', 'B']]
       fusion: [add, concat]
-      blocks: [2]
+      blocks: [3, 2]
 
   dataset: # parameters depending on the class you defined for the dataset
     root: [dataset/patches/512] # path to the dataset

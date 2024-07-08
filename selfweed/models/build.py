@@ -57,9 +57,11 @@ def build_mlformer(
     fusion="concat",
     upsampling="interpolate",
     spatial_conv=True,
+    blocks=4
 ):
     encoder = SegformerForImageClassification.from_pretrained(version)
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
+    embeddings_dims = embeddings_dims[:blocks]
     num_classes = len(WeedMapDataset.id2class)
     return MLFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
 
