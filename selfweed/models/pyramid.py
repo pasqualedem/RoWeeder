@@ -87,12 +87,13 @@ class MLFormer(nn.Module):
         num_classes,
         fusion="concat",
         upsampling="interpolate",
+        spatial_conv=True,
     ) -> None:
         super().__init__()
         self.encoder = encoder
         self.embedding_dims = embedding_dims
 
-        self.mlf_fuser = MLFuser(embedding_dims, fusion=fusion, upsampling=upsampling)
+        self.mlf_fuser = MLFuser(embedding_dims, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
         self.classifier = nn.Conv2d(embedding_dims[0], num_classes, kernel_size=1)
 
     def forward(self, image):
@@ -118,6 +119,7 @@ class MLFuser(nn.Module):
         activation="GELU",
         fusion="concat",
         upsampling="interpolate",
+        spatial_conv=True,
     ):
         super().__init__()
         self.fusion = fusion
@@ -132,9 +134,12 @@ class MLFuser(nn.Module):
                     for dim in embedding_dims
                 ]
             )
-        self.spatial_fuse = nn.Conv2d(
-            embedding_dims[0], embedding_dims[0], kernel_size=3, padding=1
-        )
+        if spatial_conv:
+            self.spatial_fuse = nn.Conv2d(
+                embedding_dims[0], embedding_dims[0], kernel_size=3, padding=1
+            )
+        else:
+            self.spatial_fuse = nn.Identity()
         self.activation = getattr(nn, activation)()
         if upsampling == "interpolate":
             self.upsample = [
