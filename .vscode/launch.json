@@ -39,7 +39,7 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["label", "--outdir", "dataset/generated", "--parameters", "parameters/row_detect/69023956.yaml"]
+            "args": ["label", "--outdir", "dataset/generated_3", "--parameters", "parameters/row_detect/69023956.yaml"]
         },
         {
             "name": "Experiment",
@@ -57,7 +57,7 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["test", "--parameters=parameters_test/pseudo.yaml"]
+            "args": ["test", "--parameters=parameters/test/pseudo_slic.yaml"]
         },
     ]
 }

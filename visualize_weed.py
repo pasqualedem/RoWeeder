@@ -112,7 +112,7 @@ def display_prediction():
         torch.zeros_like(torch.tensor(to_draw_mask)).numpy(), lines, color=(255, 0, 255)
     )
     argmask = mask[0].type(torch.uint8)
-    weed_map, slic = label_from_row(img, argmask, torch.tensor(line_mask).permute(2, 0, 1)[0])
+    weed_map, weed_map_slic, slic = label_from_row(img, argmask, torch.tensor(line_mask).permute(2, 0, 1)[0])
     f1 = f1_score(
         weed_map.argmax(dim=0).cuda(),
         gt,

@@ -11,16 +11,17 @@ from selfweed.models.utils import ModelOutput
 
 class HoughSLICSegmentationWrapper(nn.Module):
     classificator_size = (224, 224)
-    def __init__(self, classification_model, plant_detector, slic_params) -> None:
+    def __init__(self, classification_model, plant_detector, slic_params, use_ndvi=True) -> None:
         super().__init__()
         self.model = classification_model
         self.plant_detector = plant_detector
         self.slic_params = slic_params
+        self.use_ndvi = use_ndvi
         self.__repr__ = f"HoughSlicWrapper:\n{self.model.__repr__}"
         
     def segment(self, image, mask, slic):
         weedmap = mask.clone().long()
-        slic_mask = slic * mask
+        slic_mask = slic * mask if self.use_ndvi else slic
         unique_slic = slic_mask.unique()
         for u in unique_slic[1:]:
             patch = slic_mask == u

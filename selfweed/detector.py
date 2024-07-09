@@ -183,7 +183,7 @@ class AbstractHoughCropRowDetector(CropRowDetector):
             else:
                 raise ValueError("Must be 2D tensor")
         components = cv2.connectedComponents(input_img.cpu().numpy())[1:]
-        components = torch.tensor(components).cuda()
+        components = torch.tensor(np.array(components)).cuda()
 
         def get_region(label):
             where_t = torch.where(label == components)

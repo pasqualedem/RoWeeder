@@ -12,11 +12,12 @@ parameters:
   tracker:
     ignored_files: ["*.bin,*.safetensors"]
     test_image_log_frequency: [10]
+    tags: [[PseudoGT, SLIC]]
 
   model:
     name: [pseudo_gt] # path to model class or model name contained in EzDL or super-gradients
     params:
-      gt_folder: [dataset/generated/69023956/pseudogt] # path to the gt folder
+      gt_folder: [dataset/generated/69023956/pseudogt_slic] # path to the gt folder
 
   dataset: # parameters depending on the class you defined for the dataset
     preprocess:
