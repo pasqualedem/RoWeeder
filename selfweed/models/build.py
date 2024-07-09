@@ -5,7 +5,7 @@ from selfweed.models.rowweeder import RowWeeder
 from transformers.models.segformer.modeling_segformer import SegformerForImageClassification, SegformerConfig, SegformerForSemanticSegmentation
 from transformers import ResNetForImageClassification, SwinModel, SwinConfig
 
-from selfweed.models.segmentation import HoughSLICSegmentationWrapper
+from selfweed.models.segmentation import HoughCC, HoughSLIC, HoughSLICSegmentationWrapper
 from selfweed.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper
 from selfweed.models.pyramid import MLFormer, PyramidFormer
 from selfweed.data.weedmap import WeedMapDataset, ClassificationWeedMapDataset
@@ -104,6 +104,7 @@ def build_resnet50(
     input_channels,
     plant_detector_params,
     slic_params,
+    internal_batch_size=1,
 ):
     classification_model = HuggingFaceClassificationWrapper(ResNetForImageClassification.from_pretrained(
         "microsoft/resnet-50",
@@ -114,8 +115,32 @@ def build_resnet50(
     plant_detector = get_vegetation_detector(
         plant_detector_params["name"], plant_detector_params["params"]
     )
-    return HoughSLICSegmentationWrapper(classification_model, plant_detector, slic_params)
+    return HoughSLICSegmentationWrapper(classification_model, plant_detector, slic_params, internal_batch_size=internal_batch_size)
 
+
+def build_houghcc(
+    input_channels,
+    plant_detector_params,
+    hough_detector_params,
+):
+    plant_detector = get_vegetation_detector(
+        plant_detector_params["name"], plant_detector_params["params"]
+    )
+    hough_detector = HoughCropRowDetector(**hough_detector_params)
+    return HoughCC(plant_detector=plant_detector, hough_detector=hough_detector)
+
+
+def build_houghslic(
+    input_channels,
+    plant_detector_params,
+    hough_detector_params,
+    slic_params,
+):
+    plant_detector = get_vegetation_detector(
+        plant_detector_params["name"], plant_detector_params["params"]
+    )
+    hough_detector = HoughCropRowDetector(**hough_detector_params)
+    return HoughSLIC(plant_detector=plant_detector, hough_detector=hough_detector, slic_params=slic_params)
 
 def build_pseudo_gt_model(
     gt_folder

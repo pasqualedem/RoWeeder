@@ -59,5 +59,14 @@
             "justMyCode": false,
             "args": ["test", "--parameters=parameters/test/pseudo_slic.yaml"]
         },
+        {
+            "name": "Measure",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["measure", "--parameters=parameters/efficiency/segresnet.yaml"]
+        },
     ]
 }

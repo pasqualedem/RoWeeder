@@ -308,6 +308,25 @@ def test(param_path: str = "parameters.yaml"):
             run.init(params)
             run.test()
             run.end()
+            
+
+def measure(param_path: str = "parameters.yaml"):
+    logger.info("Measuring model")
+    settings = load_yaml(param_path)
+    logger.info(f"Loaded parameters from {param_path}")
+    if "experiment" in settings: # It's a grid
+        experimenter = Experimenter()
+        summary, grids, dot_elements = experimenter.calculate_runs(settings)
+    else:
+        grids = [[settings]]
+    for i, grid in enumerate(grids):
+        print(f"Grid {i+1} with {len(grid)} runs")
+        for j, params in enumerate(grid):
+            print(f"Run {j+1} out of {len(grid)}")
+            run = Run()
+            run.init(params)
+            run.measure()
+            run.end()
 
 
 def preview(settings: Mapping, param_path: str = "local variable"):

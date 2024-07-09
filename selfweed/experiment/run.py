@@ -3,6 +3,7 @@ import os
 import sys
 import shutil
 from copy import deepcopy
+from ptflops import get_model_complexity_info
 from safetensors import safe_open
 
 import torch
@@ -96,9 +97,11 @@ class Run:
         self.tracker = get_experiment_tracker(self.accelerator, self.params)
         self.url = self.tracker.url
         self.name = self.tracker.name
-        self.train_loader, self.val_loader, self.test_loader, self.deprocess = get_dataloaders(
-            self.dataset_params,
-            self.dataloader_params,
+        self.train_loader, self.val_loader, self.test_loader, self.deprocess = (
+            get_dataloaders(
+                self.dataset_params,
+                self.dataloader_params,
+            )
         )
         model_name = self.model_params.get("name")
         logger.info(f"Creating model {model_name}")
@@ -111,13 +114,13 @@ class Run:
         if self.train_params.get("compile", False):
             logger.info("Compiling model")
             self.model = torch.compile(self.model)
-            
+
         logger.info("Preparing model")
         if self.params.get("loss"):
             self.criterion = build_loss(self.params["loss"])
             self.model.loss = self.criterion
         self.model = self.accelerator.prepare(self.model)
-        
+
         if self.params.get("train"):
             self._prep_for_training()
         if self.val_loader:
@@ -227,14 +230,14 @@ class Run:
                         metrics = self.validate_epoch(epoch)
                         self._scheduler_step(SchedulerStepMoment.EPOCH, metrics)
                 self.save_training_state(epoch, metrics)
-                
+
         # Restore best model
         self.restore_best_model()
 
         if self.test_loader:
             self.test()
         self.end()
-        
+
     def _metric_is_better(self, metric):
         if self.best_metric is None:
             return True
@@ -307,12 +310,12 @@ class Run:
         metrics = params.get(f"{phase}_metrics", None)
         metrics = build_metrics(metrics)
         setattr(self, f"{phase}_metrics", self.accelerator.prepare(metrics))
-        
+
     def _update_loss(self, loss: LossOutput):
         loss_value = loss.value.item()
         loss_components = {k: v.item() for k, v in loss.components.items()}
         self.tracker.log_metric("loss", loss_value)
-        if len(loss_components) > 1: # If there are multiple components
+        if len(loss_components) > 1:  # If there are multiple components
             for k, v in loss_components.items():
                 self.tracker.log_metric(f"{k}_loss", v)
 
@@ -367,7 +370,9 @@ class Run:
         self.train_metrics.reset()
 
         loss_avg = RunningAverage()
-        loss_components_avg = {k: RunningAverage() for k in self.criterion.components.keys()}
+        loss_components_avg = {
+            k: RunningAverage() for k in self.criterion.components.keys()
+        }
         loss_normalizer = 1
         # tqdm stuff
         bar = tqdm(
@@ -473,9 +478,9 @@ class Run:
                     id2classes=dataloader.dataset.id2class,
                     phase=phase,
                 )
-                
+
                 self.global_val_step += 1
-                
+
             metrics_dict = {
                 **phase_metrics.compute(),
                 "loss": avg_loss.compute(),
@@ -496,7 +501,56 @@ class Run:
                 logger.info(f"{phase} - {k}: {v}")
         logger.info(f"{phase} Loss: {avg_loss.compute()}")
         return metrics_dict
-    
+
+    def measure(self, dataloader=None):
+        dataloader = dataloader or self.test_loader
+        dataloader = self.accelerator.prepare(dataloader)
+        WARMUP = 10
+        ITERATIONS = 10
+        self.model.eval()
+        n_params = sum(p.numel() for p in self.model.parameters())
+        logger.info(f"Number of parameters: {n_params}")
+        self.tracker.log_metric("n_params", n_params)
+
+        macs, params = get_model_complexity_info(
+            self.model.model,
+            (3, 512, 512),
+            as_strings=True,
+            backend="pytorch",
+            print_per_layer_stat=True,
+            verbose=True,
+        )
+        logger.info(f"MACs: {macs}")
+        logger.info(f"Params: {params}")
+
+        start_event = torch.cuda.Event(enable_timing=True)
+        end_event = torch.cuda.Event(enable_timing=True)
+        i = 0
+        total_time = 0
+        logger.info(f"Number of warmup steps: {WARMUP}")
+        logger.info(f"Number of batches to measure: {len(dataloader)}")
+        logger.info("Measuring time")
+        with torch.no_grad():
+            for k in range(ITERATIONS):
+                logger.info(f"Iteration {k}")
+                for batch_dict in dataloader:
+                    if i < WARMUP:
+                        _ = self.model(batch_dict)
+                        continue
+                start_event.record()
+                _ = self.model(batch_dict)
+                end_event.record()
+                # Wait for GPU to finish
+                torch.cuda.synchronize()
+                # Calculate elapsed time
+                elapsed_time = start_event.elapsed_time(end_event)
+                total_time += elapsed_time
+                i += 1
+        self.accelerator.wait_for_everyone()
+        average_time = total_time / i
+        logger.info(f"Average time: {average_time}")
+        self.tracker.log_metric("average_time", average_time)
+
     def restore_best_model(self):
         filename = f"{self.tracker.local_dir}/best/model.safetensors"
         with safe_open(filename, framework="pt") as f:
