@@ -6,6 +6,7 @@ experiment:
   start_from_grid: 0 # skip grids in the grid search
   start_from_run: 0 # skip runs from the selected grid
   search: grid
+  task: segmentation
   # n_trials: 5
 
 parameters:
