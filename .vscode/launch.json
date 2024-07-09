@@ -66,7 +66,7 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["measure", "--parameters=parameters/efficiency/segresnet.yaml"]
+            "args": ["measure", "--parameters=parameters/efficiency/pyramidformer.yaml"]
         },
     ]
 }

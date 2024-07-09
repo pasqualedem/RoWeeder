@@ -522,6 +522,7 @@ class Run:
         )
         logger.info(f"MACs: {macs}")
         logger.info(f"Params: {params}")
+        self.tracker.log_metric("macs", macs)
 
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)

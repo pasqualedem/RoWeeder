@@ -506,11 +506,15 @@ class WandBLogger(AbstractLogger):
 
     @main_process_only
     def log_metric(self, name, metric, epoch=None):
-        wandb.log({f"{self.context}/{name}": metric})
+        if self.context:
+            name = f"{self.context}/{name}"
+        wandb.log({name: metric})
 
     @main_process_only
     def log_metrics(self, metrics: dict, epoch=None):
-        wandb.log({f"{self.context}/{k}": v for k, v in metrics.items()})
+        if self.context:
+            metrics = {f"{self.context}/{k}": v for k, v in metrics.items()}
+        wandb.log(metrics)
 
     def __repr__(self):
         return "WandbLogger"
