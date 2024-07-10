@@ -16,6 +16,7 @@ class PyramidFormer(nn.Module):
         num_classes,
         fusion="concat",
         upsampling="interpolate",
+        spatial_conv=True,
         blocks=4,
     ) -> None:
         super().__init__()
@@ -25,7 +26,7 @@ class PyramidFormer(nn.Module):
 
         self.pyramid_fusers = nn.ModuleList(
             [
-                PyramidFuser(dim_shallow, dim_deep, fusion=fusion, upsampling=upsampling)
+                PyramidFuser(dim_shallow, dim_deep, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
                 for dim_shallow, dim_deep in zip(
                     embedding_dims[::-1], embedding_dims[::-1][1:]
                 )
@@ -54,7 +55,7 @@ class PyramidFormer(nn.Module):
 
 
 class PyramidFuser(nn.Module):
-    def __init__(self, dim_deep, dim_shallow, activation="GELU", fusion="concat", upsampling="interpolate"):
+    def __init__(self, dim_deep, dim_shallow, activation="GELU", fusion="concat", upsampling="interpolate", spatial_conv=True):
         super().__init__()
         self.fusion = fusion
         if fusion == "concat":
@@ -64,7 +65,7 @@ class PyramidFuser(nn.Module):
         self.fuse_conv = nn.Conv2d(dim_input, dim_shallow, kernel_size=1)
         self.spatial_fuse = nn.Conv2d(
             dim_shallow, dim_shallow, kernel_size=3, padding=1
-        )
+        ) if spatial_conv else nn.Identity()
         self.activation = getattr(nn, activation)()
         if upsampling == "interpolate":
             self.upsample = lambda x: F.interpolate(
