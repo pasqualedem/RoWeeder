@@ -11,7 +11,7 @@ parameters:
 
   tracker:
     ignored_files: ["*.bin,*.safetensors"]
-    test_image_log_frequency: [10]
+    test_image_log_frequency: [1]
 
   model:
     name: [pseudo_gt] # path to model class or model name contained in EzDL or super-gradients
@@ -29,7 +29,7 @@ parameters:
 
   dataloader:
     num_workers: [0]
-    batch_size: [2]
+    batch_size: [16]
 
   test_metrics:
     JaccardIndex: &metric_params
@@ -39,11 +39,11 @@ parameters:
     F1Score: *metric_params
 
 other_grids:
-  -   dataset: # parameters depending on the class you defined for the dataset
-        test_fields: [["001"]]
-  -   dataset: # parameters depending on the class you defined for the dataset
-        test_fields: [["002"]]
-  -   dataset: # parameters depending on the class you defined for the dataset
-        test_fields: [["003"]]
-  -   dataset: # parameters depending on the class you defined for the dataset
-        test_fields: [["004"]]
+  # -   dataset: # parameters depending on the class you defined for the dataset
+  #       test_fields: [["001"]]
+  # -   dataset: # parameters depending on the class you defined for the dataset
+  #       test_fields: [["002"]]
+  # -   dataset: # parameters depending on the class you defined for the dataset
+  #       test_fields: [["003"]]
+  # -   dataset: # parameters depending on the class you defined for the dataset
+  #       test_fields: [["004"]]

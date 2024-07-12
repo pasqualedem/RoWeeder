@@ -1,7 +1,7 @@
 experiment:
   # It contains all the about the grids and the group of runs:
   name: RowWeed # name of the logger platform experiment
-  group: PyramidFormer # name of group of experiments for the logger platform
+  group: Supervised # name of group of experiments for the logger platform
   continue_with_errors: False # continue with other runs even if a run fails
   start_from_grid: 0 # skip grids in the grid search
   start_from_run: 0 # skip runs from the selected grid
@@ -20,7 +20,7 @@ parameters:
     train_image_log_frequency: [20]
     val_image_log_frequency: [10]
     test_image_log_frequency: [10]
-    tags: [[Pyramid, Tiny]]
+    tags: [[Focal, ML]]
 
   train:
     max_epochs: [30]
@@ -42,18 +42,17 @@ parameters:
           weight: 1.0
 
   model:
-    name: [pyramidformer] # path to model class or model name contained in EzDL or super-gradients
+    name: [mlformer] # path to model class or model name contained in EzDL or super-gradients
     params:
       input_channels: &input_channels [['R', 'G', 'B']]
-      fusion: [concat]
-      blocks: [3]
+      fusion: [add]
 
   dataset: # parameters depending on the class you defined for the dataset
     root: [dataset/patches/512] # path to the dataset
-    gt_folder: [dataset/generated/69023956/pseudogt] # path to the gt folder
+    gt_folder: [dataset/patches/512] # path to the ground truth
     channels: *input_channels
-    train_fields: [["000", "001", "002", "004"]]
-    test_fields: [["003"]]
+    train_fields: [["001", "002", "003", "004"]]
+    test_fields: [["000"]]
     preprocess:
       mean: [[0.485, 0.456, 0.406]]
       std: [[0.229, 0.224, 0.225]]
@@ -73,3 +72,15 @@ parameters:
     F1Score: *metric_params
 
 other_grids:
+  -   dataset: # parameters depending on the class you defined for the dataset
+        train_fields: [["000", "002", "003", "004"]]
+        test_fields: [["001"]]
+  -   dataset: # parameters depending on the class you defined for the dataset
+        train_fields: [["000", "001", "003", "004"]]
+        test_fields: [["002"]]
+  -   dataset: # parameters depending on the class you defined for the dataset
+        train_fields: [["000", "001", "002", "004"]]
+        test_fields: [["003"]]
+  -   dataset: # parameters depending on the class you defined for the dataset
+        train_fields: [["000", "001", "002", "003"]]
+        test_fields: [["004"]]

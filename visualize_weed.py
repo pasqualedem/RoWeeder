@@ -79,7 +79,7 @@ def display_prediction():
             i = 0
             st_state["i"] = i
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4, col5 = st.columns(5)
     data_dict = st_state["dataset"][i]
     img = data_dict.image
     gt = data_dict.target
@@ -125,7 +125,9 @@ def display_prediction():
     weed_map = map_grayscale_to_rgb(
         weed_map, mapping={1: (0, 255, 0), 2: (255, 0, 0)}
     ).transpose(2, 0, 1)
-    weed_map = get_drawn_img(weed_map, lines, color=(255, 0, 255))
+    weed_map_lines = get_drawn_img(weed_map, lines, color=(255, 0, 255))
+    to_draw_mask = to_draw_mask[0]
+    weed_map = np.moveaxis(weed_map, 0, -1)
 
     st.write(data_dict.name)
     st.write("f1 score: ", f1)
@@ -142,8 +144,15 @@ def display_prediction():
         st.write("## GT")
         st.image(Image.fromarray(to_draw_gt), width=300)
     with col3:
+        st.write("## Mask")
+        st.image(Image.fromarray(to_draw_mask), width=300)
+    with col4:
         st.write("## Prediction")
         st.image(weed_map, width=300)
+    with col5:
+        st.write("## Lines")
+        st.image(Image.fromarray(weed_map_lines), width=300)
+        
     st.write("## Lines")
     st.dataframe(pd.DataFrame(lines.cpu(), columns=["rho", "theta"]))
     st.write("## Original Lines")

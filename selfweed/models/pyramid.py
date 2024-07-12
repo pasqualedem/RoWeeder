@@ -37,7 +37,7 @@ class PyramidFormer(nn.Module):
     def forward(self, image):
         B, _, H, W = image.shape
         hidden_states = self.encoder(image, output_hidden_states=True).hidden_states
-        if len(hidden_states) > self.blocks + 1:
+        if len(hidden_states) > self.blocks:
             hidden_states = hidden_states[:self.blocks]
         x = hidden_states[-1]
         for i, fuser in enumerate(self.pyramid_fusers):
