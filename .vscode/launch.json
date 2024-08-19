@@ -66,7 +66,7 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["row_test", "--parameters=parameters/test_row/pyramidformer.yaml"]
+            "args": ["row_test", "--parameters=parameters/test_row/flat.yaml"]
         },
         {
             "name": "Measure",

@@ -14,11 +14,11 @@ parameters:
     test_image_log_frequency: [1]
 
   model:
-    name: [pyramidformer] # path to model class or model name contained in EzDL or super-gradients
+    name: [pyramid] # path to model class or model name contained in EzDL or super-gradients
     params:
       input_channels: &input_channels [['R', 'G', 'B']]
       fusion: [concat]
-      checkpoint: [checkpoints/pyramidformer_000.safetensors]
+      checkpoint: [checkpoints/pyramid_000.safetensors]
 
   row_model:
     hough_detector_params:
@@ -59,19 +59,19 @@ other_grids:
         test_fields: [["001"]]
       model:
         params:
-          checkpoint: [checkpoints/pyramidformer_001.safetensors]
+          checkpoint: [checkpoints/pyramid_001.safetensors]
   -   dataset: # parameters depending on the class you defined for the dataset
         test_fields: [["002"]]
       model:
         params:
-          checkpoint: [checkpoints/pyramidformer_002.safetensors]
+          checkpoint: [checkpoints/pyramid_002.safetensors]
   -   dataset: # parameters depending on the class you defined for the dataset
         test_fields: [["003"]]
       model:
         params:
-          checkpoint: [checkpoints/pyramidformer_003.safetensors]
+          checkpoint: [checkpoints/pyramid_003.safetensors]
   -   dataset: # parameters depending on the class you defined for the dataset
         test_fields: [["004"]]
       model:
         params:
-          checkpoint: [checkpoints/pyramidformer_004.safetensors]
+          checkpoint: [checkpoints/pyramid_004.safetensors]

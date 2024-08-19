@@ -14,7 +14,7 @@ parameters:
     test_image_log_frequency: [10]
 
   model:
-    name: [mlformer] # path to model class or model name contained in EzDL or super-gradients
+    name: [flat] # path to model class or model name contained in EzDL or super-gradients
     params:
       input_channels: &input_channels [['R', 'G', 'B']]
       fusion: [add, concat]
