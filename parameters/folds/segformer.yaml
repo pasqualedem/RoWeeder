@@ -77,5 +77,8 @@ other_grids:
         train_fields: [["000", "001", "003", "004"]]
         test_fields: [["002"]]
   -   dataset: # parameters depending on the class you defined for the dataset
+        train_fields: [["000", "001", "002", "004"]]
+        test_fields: [["003"]]
+  -   dataset: # parameters depending on the class you defined for the dataset
         train_fields: [["000", "001", "002", "003"]]
         test_fields: [["004"]]

@@ -31,11 +31,13 @@ python3 main.py rotate --root dataset/RedEdge/004 --outdir dataset/rotated_ortho
 ```
 
 ### Patchify the images
+```bash
 python3 main.py patchify --root dataset/rotated_ortho/000 --outdir dataset/patches/512/000 --patch_size 512 &
 python3 main.py patchify --root dataset/rotated_ortho/001 --outdir dataset/patches/512/001 --patch_size 512 &
 python3 main.py patchify --root dataset/rotated_ortho/002 --outdir dataset/patches/512/002 --patch_size 512 &
 python3 main.py patchify --root dataset/rotated_ortho/003 --outdir dataset/patches/512/003 --patch_size 512 &
 python3 main.py patchify --root dataset/rotated_ortho/004 --outdir dataset/patches/512/004 --patch_size 512
+```
 
 
 ### Generate the pseudo GT
@@ -44,7 +46,7 @@ python3 main.py patchify --root dataset/rotated_ortho/004 --outdir dataset/patch
     python3 main.py label --outdir dataset/generated --parameters parameters/row_detect/69023956.yaml
     ```
 
-### Train the model
+### Train the RoWeeder Flat model
     
     ```bash
-    python3 main.py experiment
+    python3 main.py experiment --parameters=parameters/folds/flat.yaml
