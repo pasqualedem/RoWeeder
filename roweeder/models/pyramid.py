@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from einops import rearrange
 
-from selfweed.models.utils import RowWeederModelOutput
+from roweeder.models.utils import RowWeederModelOutput
 
 
 class RoWeederPyramid(nn.Module):

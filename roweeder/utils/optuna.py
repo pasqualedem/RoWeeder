@@ -1,6 +1,6 @@
 import optuna
 
-from selfweed.utils.grid import linearize, delinearize
+from roweeder.utils.grid import linearize, delinearize
 
 
 class Optunizer:

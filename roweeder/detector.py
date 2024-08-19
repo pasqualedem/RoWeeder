@@ -8,8 +8,8 @@ import torch
 # from ezdl.models.lawin import Laweed, SplitLawin
 from torchvision.transforms import Normalize, ToTensor, Compose
 from torch.nn import functional as F
-from selfweed.histogramdd import histogramdd
-from selfweed.utils.utils import (
+from roweeder.histogramdd import histogramdd
+from roweeder.utils.utils import (
     get_circular_interval,
     get_medians,
     max_displacement,

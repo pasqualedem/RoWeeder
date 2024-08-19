@@ -6,7 +6,7 @@ import cv2
 
 from torch.utils.data import Dataset
 
-from selfweed.data.utils import DataDict, extract_plants, LABELS, pad_patches
+from roweeder.data.utils import DataDict, extract_plants, LABELS, pad_patches
 
 
 class WeedMapDataset(Dataset):

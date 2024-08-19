@@ -9,10 +9,10 @@ from accelerate import Accelerator
 from accelerate.logging import get_logger
 from transformers import get_scheduler as get_transformers_scheduler
 
-from selfweed.data.utils import DataDict
-from selfweed.models.utils import LossOutput, ModelOutput
-from selfweed.tracker.abstract_tracker import AbstractLogger
-from selfweed.utils.logger import get_logger
+from roweeder.data.utils import DataDict
+from roweeder.models.utils import LossOutput, ModelOutput
+from roweeder.tracker.abstract_tracker import AbstractLogger
+from roweeder.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -65,7 +65,7 @@ def get_scheduler(optimizer, num_training_steps, scheduler_params):
 
 
 def get_experiment_tracker(accelerator: Accelerator, params: dict) -> AbstractLogger:
-    from selfweed.tracker.wandb_tracker import (
+    from roweeder.tracker.wandb_tracker import (
         wandb_experiment as platform_logger,
     )
     return platform_logger(accelerator, params)

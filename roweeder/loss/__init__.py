@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 
-from selfweed.models.utils import LossOutput, RowWeederModelOutput
+from roweeder.models.utils import LossOutput, RowWeederModelOutput
 
 from .focal import FocalLoss, PlantLoss
 from .contrastive import ContrastiveLoss

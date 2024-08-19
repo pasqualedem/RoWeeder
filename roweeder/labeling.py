@@ -12,15 +12,15 @@ from tqdm import tqdm
 from datetime import datetime
 
 import yaml
-from selfweed.data import get_dataset
-from selfweed.data.utils import DataDict, crop_to_nonzero
+from roweeder.data import get_dataset
+from roweeder.data.utils import DataDict, crop_to_nonzero
 
-from selfweed.detector import (
+from roweeder.detector import (
     HoughCropRowDetector,
     HoughDetectorDict,
     get_vegetation_detector,
 )
-from selfweed.visualize import map_grayscale_to_rgb
+from roweeder.visualize import map_grayscale_to_rgb
 
 
 def get_drawn_img(img, theta_rho, color=(255, 255, 255)):

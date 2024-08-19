@@ -14,17 +14,17 @@ from torch.optim import AdamW
 from torchmetrics import MetricCollection, F1Score
 from tqdm import tqdm
 
-from selfweed.detector import HoughCropRowDetector, HoughDetectorDict, get_vegetation_detector
-from selfweed.labeling import get_line_mask, get_on_off_row_plants
-from selfweed.models.utils import LossOutput, ModelOutput
-from selfweed.utils.logger import get_logger
-from selfweed.data import get_dataloaders
-from selfweed.data.utils import DataDict
-from selfweed.experiment.utils import WrapperModule
-from selfweed.loss import build_loss
-from selfweed.models import build_model
-from selfweed.utils.metrics import RowF1Score, build_metrics
-from selfweed.utils.utils import (
+from roweeder.detector import HoughCropRowDetector, HoughDetectorDict, get_vegetation_detector
+from roweeder.labeling import get_line_mask, get_on_off_row_plants
+from roweeder.models.utils import LossOutput, ModelOutput
+from roweeder.utils.logger import get_logger
+from roweeder.data import get_dataloaders
+from roweeder.data.utils import DataDict
+from roweeder.experiment.utils import WrapperModule
+from roweeder.loss import build_loss
+from roweeder.models import build_model
+from roweeder.utils.metrics import RowF1Score, build_metrics
+from roweeder.utils.utils import (
     RunningAverage,
     write_yaml,
 )

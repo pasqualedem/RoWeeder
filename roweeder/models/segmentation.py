@@ -5,10 +5,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms.functional as FV
 
-from selfweed.data.utils import DataDict, crop_to_nonzero
-from selfweed.detector import HoughDetectorDict
-from selfweed.labeling import get_drawn_img, get_slic, label_from_row
-from selfweed.models.utils import ModelOutput
+from roweeder.data.utils import DataDict, crop_to_nonzero
+from roweeder.detector import HoughDetectorDict
+from roweeder.labeling import get_drawn_img, get_slic, label_from_row
+from roweeder.models.utils import ModelOutput
 
 class HoughSLICSegmentationWrapper(nn.Module):
     classificator_size = (224, 224)

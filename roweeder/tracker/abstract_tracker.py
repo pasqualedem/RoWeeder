@@ -4,8 +4,8 @@ from PIL import Image
 from accelerate import Accelerator
 import torch
 
-from selfweed.data.utils import DataDict
-from selfweed.utils.logger import get_logger
+from roweeder.data.utils import DataDict
+from roweeder.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

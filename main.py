@@ -7,14 +7,14 @@ import pandas as pd
 from PIL import Image
 from tqdm import tqdm
 
-from selfweed.utils.grid import make_grid
-from selfweed.utils.utils import load_yaml
+from roweeder.utils.grid import make_grid
+from roweeder.utils.utils import load_yaml
 
-from selfweed.data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
-from selfweed.labeling import label as label_fn, load_and_label
-from selfweed.detector import ModifiedHoughCropRowDetector
-from selfweed.utils.utils import get_square_from_lines
-from selfweed.preprocess import divide_ortho_into_patches, rotate_ortho
+from roweeder.data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
+from roweeder.labeling import label as label_fn, load_and_label
+from roweeder.detector import ModifiedHoughCropRowDetector
+from roweeder.utils.utils import get_square_from_lines
+from roweeder.preprocess import divide_ortho_into_patches, rotate_ortho
 
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
@@ -88,7 +88,7 @@ def cli_row_detection_springwheat(inpath, hough_threshold, mask_outpath, uri, an
     is_flag=True,
 )
 def experiment(parameters, parallel, only_create):
-    from selfweed.experiment.experiment import experiment as run_experiment
+    from roweeder.experiment.experiment import experiment as run_experiment
     run_experiment(param_path=parameters, parallel=parallel, only_create=only_create)
 
         
@@ -97,26 +97,26 @@ def experiment(parameters, parallel, only_create):
     "--parameters", default="parameters.yaml", help="Path to the parameters file"
 )
 def run(parameters):
-    from selfweed.experiment.experiment import run as run_single
+    from roweeder.experiment.experiment import run as run_single
     run_single(param_path=parameters)
     
 @main.command("test")
 @click.option("--parameters", default="parameters.yaml", help="Path to the parameters file")
 def test(parameters):
-    from selfweed.experiment.experiment import test as run_test
+    from roweeder.experiment.experiment import test as run_test
     run_test(param_path=parameters)
     
 @main.command("row_test")
 @click.option("--parameters", default="parameters.yaml", help="Path to the parameters file")
 def test(parameters):
-    from selfweed.experiment.experiment import row_test
+    from roweeder.experiment.experiment import row_test
     row_test(param_path=parameters)
     
     
 @main.command("measure")
 @click.option("--parameters", default="parameters.yaml", help="Path to the parameters file")
 def test(parameters):
-    from selfweed.experiment.experiment import measure as run_measure
+    from roweeder.experiment.experiment import measure as run_measure
     run_measure(param_path=parameters)
 
     

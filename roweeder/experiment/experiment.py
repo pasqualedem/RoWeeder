@@ -7,13 +7,13 @@ import uuid
 import pandas as pd
 from typing import Mapping
 
-from selfweed.utils.utils import EasyDict
-from selfweed.utils.logger import get_logger
-from selfweed.experiment.run import Run
-from selfweed.experiment.parallel import ParallelRun
-from selfweed.utils.utils import get_timestamp, load_yaml, nested_dict_update, update_collection
-from selfweed.utils.grid import linearize, linearized_to_string, make_grid
-from selfweed.utils.optuna import Optunizer
+from roweeder.utils.utils import EasyDict
+from roweeder.utils.logger import get_logger
+from roweeder.experiment.run import Run
+from roweeder.experiment.parallel import ParallelRun
+from roweeder.utils.utils import get_timestamp, load_yaml, nested_dict_update, update_collection
+from roweeder.utils.grid import linearize, linearized_to_string, make_grid
+from roweeder.utils.optuna import Optunizer
 
 
 logger = get_logger(__name__)

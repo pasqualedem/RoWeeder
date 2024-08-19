@@ -1,6 +1,6 @@
 import torch
 
-from selfweed.utils.utils import substitute_values
+from roweeder.utils.utils import substitute_values
 
 
 def get_reduction(reduction: str):

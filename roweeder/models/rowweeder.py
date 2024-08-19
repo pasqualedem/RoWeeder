@@ -7,7 +7,7 @@ from torch.nn.functional import normalize
 from einops.layers.torch import Reduce
 from einops import rearrange, repeat
 
-from selfweed.models.utils import RowWeederModelOutput
+from roweeder.models.utils import RowWeederModelOutput
 
 
 class RowWeeder(nn.Module):

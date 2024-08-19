@@ -8,11 +8,11 @@ import torchvision.transforms as transforms
 from torchvision.transforms import functional as F
 from logging import getLogger
 
-from selfweed.data.stats import STATS
+from roweeder.data.stats import STATS
 from sklearn.model_selection import train_test_split
 
-from selfweed.data import stats
-from selfweed.utils.utils import remove_suffix
+from roweeder.data import stats
+from roweeder.utils.utils import remove_suffix
 
 logger = getLogger(__name__)
 

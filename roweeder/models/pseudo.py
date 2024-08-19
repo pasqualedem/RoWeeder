@@ -1,8 +1,8 @@
 import os
 import torch
 import torchvision
-from selfweed.data.weedmap import WeedMapDataset
-from selfweed.models.utils import ModelOutput
+from roweeder.data.weedmap import WeedMapDataset
+from roweeder.models.utils import ModelOutput
 
 
 class PseudoModel(torch.nn.Module):

@@ -3,7 +3,7 @@ from sklearn.model_selection import train_test_split
 import torch
 import torchvision.transforms as T
 
-from selfweed.data.weedmap import (
+from roweeder.data.weedmap import (
     SelfSupervisedWeedMapDataset,
     WeedMapDataset,
     ClassificationWeedMapDataset,

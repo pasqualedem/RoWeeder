@@ -13,12 +13,12 @@ import torch
 import wandb
 from PIL import Image
 from matplotlib import pyplot as plt
-from selfweed.data.utils import DataDict
-from selfweed.tracker.abstract_tracker import AbstractLogger, main_process_only
+from roweeder.data.utils import DataDict
+from roweeder.tracker.abstract_tracker import AbstractLogger, main_process_only
 
 from accelerate import Accelerator
-from selfweed.utils.utils import log_every_n, write_yaml
-from selfweed.utils.logger import get_logger
+from roweeder.utils.utils import log_every_n, write_yaml
+from roweeder.utils.logger import get_logger
 
 
 logger = get_logger(__name__)

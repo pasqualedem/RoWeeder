@@ -5,7 +5,7 @@ import os
 
 from colorlog import getLogger
 
-from selfweed.utils.utils import write_yaml
+from roweeder.utils.utils import write_yaml
 
 
 logger = getLogger(__name__)

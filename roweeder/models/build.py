@@ -1,15 +1,15 @@
-from selfweed.detector import HoughCropRowDetector, get_vegetation_detector
-from selfweed.models.pseudo import PseudoModel
-from selfweed.models.rowweeder import RowWeeder
+from roweeder.detector import HoughCropRowDetector, get_vegetation_detector
+from roweeder.models.pseudo import PseudoModel
+from roweeder.models.rowweeder import RowWeeder
 
 from transformers.models.segformer.modeling_segformer import SegformerForImageClassification, SegformerConfig, SegformerForSemanticSegmentation
 from transformers import ResNetForImageClassification, SwinModel, SwinConfig
 
-from selfweed.models.segmentation import HoughCC, HoughSLIC, HoughSLICSegmentationWrapper
-from selfweed.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper, load_state_dict
-from selfweed.models.pyramid import RoWeederFlat, RoWeederPyramid
-from selfweed.models.utils import torch_dict_load
-from selfweed.data.weedmap import WeedMapDataset, ClassificationWeedMapDataset
+from roweeder.models.segmentation import HoughCC, HoughSLIC, HoughSLICSegmentationWrapper
+from roweeder.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper, load_state_dict
+from roweeder.models.pyramid import RoWeederFlat, RoWeederPyramid
+from roweeder.models.utils import torch_dict_load
+from roweeder.data.weedmap import WeedMapDataset, ClassificationWeedMapDataset
 
 def build_rowweeder_contrastive(
     encoder,

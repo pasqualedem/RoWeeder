@@ -10,16 +10,16 @@ from torchmetrics.functional import f1_score
 import torch
 import numpy as np
 import pandas as pd
-from selfweed.data.utils import DataDict
+from roweeder.data.utils import DataDict
 
-from selfweed.detector import (
+from roweeder.detector import (
     HoughCropRowDetector,
     HoughDetectorDict,
     get_vegetation_detector as get_vegetation_detector_fn,
 )
-from selfweed.data import get_dataset
-from selfweed.labeling import get_drawn_img, label_from_row, label, save_and_label
-from selfweed.visualize import map_grayscale_to_rgb
+from roweeder.data import get_dataset
+from roweeder.labeling import get_drawn_img, label_from_row, label, save_and_label
+from roweeder.visualize import map_grayscale_to_rgb
 
 
 def change_state(src, dest):

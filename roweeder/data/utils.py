@@ -1,4 +1,4 @@
-from selfweed.utils.utils import EasyDict
+from roweeder.utils.utils import EasyDict
 from enum import Enum, StrEnum
 
 import torch

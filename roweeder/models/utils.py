@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from selfweed.utils.utils import EasyDict
+from roweeder.utils.utils import EasyDict
 
 
 class RowWeederModelOutput(EasyDict):
