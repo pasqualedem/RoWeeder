@@ -42,11 +42,12 @@ python3 main.py patchify --root dataset/rotated_ortho/004 --outdir dataset/patch
 
 ### Generate the pseudo GT
     
-    ```bash
-    python3 main.py label --outdir dataset/generated --parameters parameters/row_detect/69023956.yaml
-    ```
+```bash
+python3 main.py label --outdir dataset/generated --parameters parameters/row_detect/69023956.yaml
+```
 
 ### Train the RoWeeder Flat model
     
-    ```bash
-    python3 main.py experiment --parameters=parameters/folds/flat.yaml
+```bash
+python3 main.py experiment --parameters=parameters/folds/flat.yaml
+```
