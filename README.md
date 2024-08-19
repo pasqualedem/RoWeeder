@@ -73,5 +73,6 @@ If you find this work useful, please consider citing our paper (in press):
   author={Pasquale De Marinis, Gennaro Vessio, Giovanna Castellano},
   booktitle = {Proceedings of the IEEE/CVF European Conference on Computer Vision (ECCV) Workshops},
   year={2024}
+  note={in press}
 }
 ```
