@@ -60,6 +60,15 @@
             "args": ["test", "--parameters=parameters/test/pseudo.yaml"]
         },
         {
+            "name": "Row Test",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["row_test", "--parameters=parameters/test_row/pyramidformer.yaml"]
+        },
+        {
             "name": "Measure",
             "type": "python",
             "request": "launch",

@@ -87,7 +87,10 @@ class WeedMapDataset(Dataset):
             ) for ch in ["NIR", "R"]
         ]
         nir_red = [torchvision.io.read_image(channel_path).float() for channel_path in nir_red_path]
-        return (nir_red[0] - nir_red[1]) / (nir_red[0] + nir_red[1])        
+        ndvi = (nir_red[0] - nir_red[1]) / (nir_red[0] + nir_red[1])
+        # Replaces NaN values with 0
+        ndvi[torch.isnan(ndvi)] = 0
+        return ndvi
 
     def __getitem__(self, i):
         field, filename = self.index[i]

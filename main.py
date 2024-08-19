@@ -106,6 +106,12 @@ def test(parameters):
     from selfweed.experiment.experiment import test as run_test
     run_test(param_path=parameters)
     
+@main.command("row_test")
+@click.option("--parameters", default="parameters.yaml", help="Path to the parameters file")
+def test(parameters):
+    from selfweed.experiment.experiment import row_test
+    row_test(param_path=parameters)
+    
     
 @main.command("measure")
 @click.option("--parameters", default="parameters.yaml", help="Path to the parameters file")

@@ -6,8 +6,9 @@ from transformers.models.segformer.modeling_segformer import SegformerForImageCl
 from transformers import ResNetForImageClassification, SwinModel, SwinConfig
 
 from selfweed.models.segmentation import HoughCC, HoughSLIC, HoughSLICSegmentationWrapper
-from selfweed.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper
+from selfweed.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper, load_state_dict
 from selfweed.models.pyramid import MLFormer, PyramidFormer
+from selfweed.models.utils import torch_dict_load
 from selfweed.data.weedmap import WeedMapDataset, ClassificationWeedMapDataset
 
 def build_rowweeder_model(
@@ -46,12 +47,17 @@ def build_pyramidformer(
     upsampling="interpolate",
     blocks=4,
     spatial_conv=True,
+    checkpoint=None
 ):
     encoder = SegformerForImageClassification.from_pretrained(version)
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
     embeddings_dims = embeddings_dims[:blocks]
     num_classes = len(WeedMapDataset.id2class)
-    return PyramidFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, blocks=blocks, spatial_conv=spatial_conv)
+    model = PyramidFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, blocks=blocks, spatial_conv=spatial_conv)
+    if checkpoint is not None:
+        chkpt = torch_dict_load(checkpoint)
+        load_state_dict(model, chkpt)
+    return model
 
 
 def build_mlformer(
@@ -60,25 +66,35 @@ def build_mlformer(
     fusion="concat",
     upsampling="interpolate",
     spatial_conv=True,
-    blocks=4
+    blocks=4,
+    checkpoint=None,
 ):
     encoder = SegformerForImageClassification.from_pretrained(version)
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
     embeddings_dims = embeddings_dims[:blocks]
     num_classes = len(WeedMapDataset.id2class)
-    return MLFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
+    model = MLFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
+    if checkpoint is not None:
+        chkpt = torch_dict_load(checkpoint)
+        load_state_dict(model, chkpt)
+    return model
 
 
 def build_segformer(
     input_channels,
-    version="nvidia/mit-b0"
+    version="nvidia/mit-b0",
+    checkpoint=None
 ):
     segformer = SegformerForSemanticSegmentation.from_pretrained(
         version,
         id2label=WeedMapDataset.id2class,
         label2id={v: k for k,v in WeedMapDataset.id2class.items()}
         )
-    return HuggingFaceWrapper(segformer)
+    model = HuggingFaceWrapper(segformer)
+    if checkpoint is not None:
+        chkpt = torch_dict_load(checkpoint)
+        load_state_dict(model, chkpt)
+    return model
 
 
 def build_swinmlformer(
@@ -88,6 +104,7 @@ def build_swinmlformer(
     upsampling="interpolate",
     spatial_conv=True,
     blocks=5,
+    checkpoint=None
 ):
     encoder = SwinModel.from_pretrained(version)
     config = SwinConfig.from_pretrained(version)
@@ -98,7 +115,11 @@ def build_swinmlformer(
     embeddings_dims = embeddings_dims[:blocks]
     scale_factors = [2, 4, 8, 8][:blocks]
     num_classes = len(WeedMapDataset.id2class)
-    return MLFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv, scale_factors=scale_factors)
+    model = MLFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv, scale_factors=scale_factors)
+    if checkpoint is not None:
+        chkpt = torch_dict_load(checkpoint)
+        load_state_dict(model, chkpt)
+    return model
 
 
 def build_resnet50(
@@ -106,6 +127,7 @@ def build_resnet50(
     plant_detector_params,
     slic_params,
     internal_batch_size=1,
+    checkpoint=None
 ):
     classification_model = HuggingFaceClassificationWrapper(ResNetForImageClassification.from_pretrained(
         "microsoft/resnet-50",
@@ -116,7 +138,11 @@ def build_resnet50(
     plant_detector = get_vegetation_detector(
         plant_detector_params["name"], plant_detector_params["params"]
     )
-    return HoughSLICSegmentationWrapper(classification_model, plant_detector, slic_params, internal_batch_size=internal_batch_size)
+    model = HoughSLICSegmentationWrapper(classification_model, plant_detector, slic_params, internal_batch_size=internal_batch_size)
+    if checkpoint is not None:
+        chkpt = torch_dict_load(checkpoint)
+        load_state_dict(model, chkpt)
+    return model
 
 
 def build_houghcc(

@@ -11,9 +11,11 @@ import torch
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from accelerate.utils import set_seed
 from torch.optim import AdamW
-from torchmetrics import MetricCollection
+from torchmetrics import MetricCollection, F1Score
 from tqdm import tqdm
 
+from selfweed.detector import HoughCropRowDetector, HoughDetectorDict, get_vegetation_detector
+from selfweed.labeling import get_line_mask, get_on_off_row_plants
 from selfweed.models.utils import LossOutput, ModelOutput
 from selfweed.utils.logger import get_logger
 from selfweed.data import get_dataloaders
@@ -21,7 +23,7 @@ from selfweed.data.utils import DataDict
 from selfweed.experiment.utils import WrapperModule
 from selfweed.loss import build_loss
 from selfweed.models import build_model
-from selfweed.utils.metrics import build_metrics
+from selfweed.utils.metrics import RowF1Score, build_metrics
 from selfweed.utils.utils import (
     RunningAverage,
     write_yaml,
@@ -566,6 +568,81 @@ class Run:
             self.test_metrics = self.val_metrics
         with self.tracker.test():
             self.evaluate(self.test_loader, phase="test")
+
+    def row_test(self):
+        dataloader = self.accelerator.prepare(self.test_loader)
+        self.model.eval()
+        assert (
+            dataloader.batch_size == 1 or dataloader.batch_sampler.batch_size == 1
+        ), "Batch size must be 1 for row testing"
+
+        row_model_params = self.params["row_model"]
+        hough_detector_params = row_model_params["hough_detector_params"]
+        plant_detector_params = row_model_params["plant_detector_params"]
+
+        plant_detector = get_vegetation_detector(
+            plant_detector_params["name"], plant_detector_params["params"]
+        )
+        detector = HoughCropRowDetector(
+            **hough_detector_params,
+            crop_detector=plant_detector,
+        )
+
+        rowf1 = RowF1Score()
+        rowf1 = self.accelerator.prepare(rowf1)
+        
+        f1 = F1Score(num_classes=3, task="multiclass", ignore_index=-100, average=None)
+        f1 = self.accelerator.prepare(f1)
+
+        phase = "row"
+        desc = "Row testing"
+        bar = tqdm(
+            enumerate(dataloader),
+            total=len(dataloader),
+            postfix={"loss": 0},
+            desc=desc,
+            disable=not self.accelerator.is_local_main_process,
+        )
+        self.tracker.create_prediction_sequence(phase)
+        with torch.no_grad():
+            for batch_idx, batch_dict in bar:
+                img = batch_dict.image
+                ndvi = batch_dict.ndvi
+
+                result_dict: ModelOutput = self.model(batch_dict)
+                outputs = result_dict.logits
+                preds = outputs.argmax(dim=1)
+
+                plant_mask = plant_detector(ndvi=ndvi[0])[0]
+                lines = detector.predict_from_mask(plant_mask)[HoughDetectorDict.LINES]
+                line_mask = torch.tensor(get_line_mask(lines, plant_mask.shape)).to(img.device)
+
+                on_row_plants, off_row_plants = get_on_off_row_plants(
+                    plant_mask, line_mask
+                )
+                
+                f1.update(preds, batch_dict.target)
+                rowf1.update(preds, batch_dict.target, on_row_plants, off_row_plants)
+
+                self.global_val_step += 1
+
+        metrics_dict = {
+            "IntraRowF1": rowf1["IntraRowF1"].compute(),
+            "InterRowF1": rowf1["InterRowF1"].compute(),
+            "F1": f1.compute(),
+        }
+        metrics_dict = {k: {f"{k}_{i}": v[i].item() for i, _ in enumerate(v)} for k, v in metrics_dict.items()}
+        metrics_dict = {k: v for d in metrics_dict.values() for k, v in d.items()}
+
+        self.tracker.log_metrics(
+            metrics=metrics_dict,
+            epoch=None,
+        )
+
+
+        for k, v in metrics_dict.items():
+            logger.info(f"{phase} - {k}: {v}")
+        return metrics_dict
 
     def end(self):
         logger.info("Ending run")

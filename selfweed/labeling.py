@@ -150,6 +150,33 @@ def gt_defix(gt):
     return gt
 
 
+def get_line_mask(lines, shape):
+    color = 1
+    blank = np.zeros(shape, dtype=np.uint8)
+    line_mask = get_drawn_img(
+        blank, lines, color=color
+    )
+    return np.moveaxis(line_mask, 2, 0)[0]
+    
+    
+def get_on_off_row_plants(mask, row_image):
+    if len(mask.shape) == 3:
+        mask = mask[0]
+    conn_components = cv2.connectedComponents(mask.cpu().numpy().astype(np.uint8))[1]
+    conn_components = torch.tensor(conn_components).to(mask.device)
+    all_plants = conn_components.unique()
+    if len(all_plants) == 1:
+        return torch.zeros_like(mask), torch.zeros_like(mask)
+    row_plant_intersection = conn_components * row_image.bool()
+    on_row_plants = row_plant_intersection.unique()
+    # Remove zeros
+    on_row_plants = on_row_plants[1:]
+    plants_mask = torch.isin(conn_components, on_row_plants)
+    on_row_plants_mask = (conn_components * plants_mask).bool()
+    off_row_plants_mask = (conn_components * (~plants_mask)).bool()
+    return on_row_plants_mask, off_row_plants_mask
+    
+
 def load_and_label(outdir, param_file, interactive=True):
     with open(param_file, "r") as f:
         params = yaml.safe_load(f)

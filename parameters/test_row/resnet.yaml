@@ -1,0 +1,84 @@
+experiment:
+  name: RowWeed # name of the logger platform experiment
+  group: RowTest # name of group of experiments for the logger platform
+  search: grid # search strategy to use
+  task: segmentation
+
+parameters:
+  # Contains the parameters to build the grid.
+  # Each value should be a dict or a list
+  seed: &seed [42] # random seed to set
+
+  tracker:
+    ignored_files: ["*.bin,*.safetensors"]
+    test_image_log_frequency: [1]
+
+  model:
+    name: [seg-resnet50] # path to model class or model name contained in EzDL or super-gradients
+    params:
+      input_channels: &input_channels [['R', 'G', 'B']]
+      plant_detector_params:
+        name: [NDVIDetector]
+        params:
+          threshold: [0.1]
+      slic_params:
+        percent: [0.005]
+        compactness: [20]
+        sigma: [1]
+      checkpoint: [checkpoints/resnet_000.safetensors]
+
+  row_model:
+    hough_detector_params:
+      angle_error: [3]
+      clustering_tol: [2]
+      step_rho: [1]
+      step_theta: [1]
+      theta_reduction_threshold: [1.0]
+      theta_value: [1.56]
+      threshold: [160]
+      uniform_significance: [0.1]
+    plant_detector_params:
+      name: [NDVIDetector]
+      params:
+        threshold: [0.1]
+    slic_params:
+      percent: [0.005]
+      compactness: [20]
+      sigma: [1]
+
+  dataset: # parameters depending on the class you defined for the dataset
+    preprocess:
+      mean: [[0.485, 0.456, 0.406]]
+      std: [[0.229, 0.224, 0.225]]
+    root: [dataset/patches/512] # path to the dataset
+    gt_folder: [dataset/patches/512] # path to the gt folder
+    channels: [["R", "G", "B"]]
+    test_fields: [["000"]]
+    return_path: [True]
+    return_ndvi: [True]
+
+  dataloader:
+    num_workers: [0]
+    batch_size: [1]
+
+other_grids:
+  -   dataset: # parameters depending on the class you defined for the dataset
+        test_fields: [["001"]]
+      model:
+        params:
+          checkpoint: [checkpoints/resnet_001.safetensors]
+  -   dataset: # parameters depending on the class you defined for the dataset
+        test_fields: [["002"]]
+      model:
+        params:
+          checkpoint: [checkpoints/resnet_002.safetensors]
+  -   dataset: # parameters depending on the class you defined for the dataset
+        test_fields: [["003"]]
+      model:
+        params:
+          checkpoint: [checkpoints/resnet_003.safetensors]
+  -   dataset: # parameters depending on the class you defined for the dataset
+        test_fields: [["004"]]
+      model:
+        params:
+          checkpoint: [checkpoints/resnet_004.safetensors]

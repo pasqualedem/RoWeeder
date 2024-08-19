@@ -4,6 +4,7 @@ venv
 wandb
 wandb_cache
 out
+checkpoints
 
 *.pth
 *.pyc
