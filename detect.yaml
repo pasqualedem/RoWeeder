@@ -1,3 +1,0 @@
-hough_threshold: [5, 10]
-angle_error: [3, 5, 10]
-clustering_tol: ["crop_as_tol", 10]
