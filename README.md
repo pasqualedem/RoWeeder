@@ -1,4 +1,4 @@
-# Self-Supervised-Learning-for-Precision-Agriculture
+# RoWeeder: Unsupervised Weed Mapping through Crop-Row Detection
 
 ## Prepare the environment
 
