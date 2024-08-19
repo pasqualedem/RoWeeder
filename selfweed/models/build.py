@@ -7,18 +7,17 @@ from transformers import ResNetForImageClassification, SwinModel, SwinConfig
 
 from selfweed.models.segmentation import HoughCC, HoughSLIC, HoughSLICSegmentationWrapper
 from selfweed.models.utils import HuggingFaceClassificationWrapper, HuggingFaceWrapper, load_state_dict
-from selfweed.models.pyramid import MLFormer, PyramidFormer
+from selfweed.models.pyramid import RoWeederFlat, RoWeederPyramid
 from selfweed.models.utils import torch_dict_load
 from selfweed.data.weedmap import WeedMapDataset, ClassificationWeedMapDataset
 
-def build_rowweeder_model(
+def build_rowweeder_contrastive(
     encoder,
     input_channels,
     embedding_size,
     embedding_dims,
     transformer_layers=4
 ):
-    
     return RowWeeder(
         encoder,
         input_channels=input_channels,
@@ -37,10 +36,10 @@ def build_roweeder_segformer(
     encoder = SegformerForImageClassification.from_pretrained(version)
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
     encoder = encoder.segformer.encoder
-    return build_rowweeder_model(encoder, input_channels, embedding_size, embeddings_dims, transformer_layers)
+    return build_rowweeder_contrastive(encoder, input_channels, embedding_size, embeddings_dims, transformer_layers)
 
 
-def build_pyramidformer(
+def build_roweeder_pyramid(
     input_channels,
     version="nvidia/mit-b0",
     fusion="concat",
@@ -53,14 +52,14 @@ def build_pyramidformer(
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
     embeddings_dims = embeddings_dims[:blocks]
     num_classes = len(WeedMapDataset.id2class)
-    model = PyramidFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, blocks=blocks, spatial_conv=spatial_conv)
+    model = RoWeederPyramid(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, blocks=blocks, spatial_conv=spatial_conv)
     if checkpoint is not None:
         chkpt = torch_dict_load(checkpoint)
         load_state_dict(model, chkpt)
     return model
 
 
-def build_mlformer(
+def build_roweeder_flat(
     input_channels,
     version="nvidia/mit-b0",
     fusion="concat",
@@ -73,7 +72,7 @@ def build_mlformer(
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
     embeddings_dims = embeddings_dims[:blocks]
     num_classes = len(WeedMapDataset.id2class)
-    model = MLFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
+    model = RoWeederFlat(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
     if checkpoint is not None:
         chkpt = torch_dict_load(checkpoint)
         load_state_dict(model, chkpt)
@@ -115,7 +114,7 @@ def build_swinmlformer(
     embeddings_dims = embeddings_dims[:blocks]
     scale_factors = [2, 4, 8, 8][:blocks]
     num_classes = len(WeedMapDataset.id2class)
-    model = MLFormer(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv, scale_factors=scale_factors)
+    model = RoWeederFlat(encoder, embeddings_dims, num_classes, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv, scale_factors=scale_factors)
     if checkpoint is not None:
         chkpt = torch_dict_load(checkpoint)
         load_state_dict(model, chkpt)

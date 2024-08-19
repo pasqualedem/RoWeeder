@@ -1,4 +1,4 @@
-from selfweed.models.build import build_houghcc, build_houghslic, build_mlformer, build_pseudo_gt_model, build_pyramidformer, build_roweeder_segformer, build_segformer, build_resnet50, build_swinmlformer
+from selfweed.models.build import build_houghcc, build_houghslic, build_roweeder_flat, build_pseudo_gt_model, build_roweeder_pyramid, build_roweeder_segformer, build_segformer, build_resnet50, build_swinmlformer
 
 
 MODEL_REGISTRY = {
@@ -6,8 +6,14 @@ MODEL_REGISTRY = {
     "rw_segformer": build_roweeder_segformer,
     "pseudo_gt": build_pseudo_gt_model,
     "seg-resnet50": build_resnet50,
-    "pyramidformer": build_pyramidformer,
-    "mlformer": build_mlformer,
+    
+    "pyramid": build_roweeder_pyramid,
+    "pyramidformer": build_roweeder_pyramid,
+    
+    "flat": build_roweeder_flat,
+    "flatformer": build_roweeder_flat,
+    "mlformer": build_roweeder_flat,
+    
     "swinmlformer": build_swinmlformer,
     "houghcc": build_houghcc,
     "houghslic": build_houghslic,

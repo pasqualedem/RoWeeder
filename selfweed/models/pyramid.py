@@ -8,7 +8,7 @@ from einops import rearrange
 from selfweed.models.utils import RowWeederModelOutput
 
 
-class PyramidFormer(nn.Module):
+class RoWeederPyramid(nn.Module):
     def __init__(
         self,
         encoder,
@@ -87,7 +87,7 @@ class PyramidFuser(nn.Module):
         return x
 
 
-class MLFormer(nn.Module):
+class RoWeederFlat(nn.Module):
     def __init__(
         self,
         encoder,
