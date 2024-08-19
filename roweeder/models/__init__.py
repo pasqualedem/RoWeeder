@@ -1,4 +1,5 @@
 from roweeder.models.build import build_houghcc, build_houghslic, build_roweeder_flat, build_pseudo_gt_model, build_roweeder_pyramid, build_roweeder_segformer, build_segformer, build_resnet50, build_swinmlformer
+from roweeder.models.pyramid import RoWeederPyramid, RoWeederFlat
 
 
 MODEL_REGISTRY = {

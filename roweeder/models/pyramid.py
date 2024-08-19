@@ -3,12 +3,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from huggingface_hub import PyTorchModelHubMixin
 from einops import rearrange
 
-from roweeder.models.utils import RowWeederModelOutput
+from roweeder.data.weedmap import WeedMapDataset
+from roweeder.models.utils import RowWeederModelOutput, get_segformer_encoder
 
 
-class RoWeederPyramid(nn.Module):
+class RoWeederPyramid(nn.Module, PyTorchModelHubMixin):
     def __init__(
         self,
         encoder,
@@ -52,7 +54,16 @@ class RoWeederPyramid(nn.Module):
                 param.requires_grad = False
         params = filter(lambda p: p.requires_grad, self.parameters())
         return [{"params": params}]
-
+    
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
+        encoder, embedding_dims = get_segformer_encoder()
+        kwargs["encoder"] = encoder
+        kwargs["embedding_dims"] = embedding_dims
+        if "num_classes" not in kwargs:
+            kwargs["num_classes"] = len(WeedMapDataset.id2class)
+            
+        return super().from_pretrained(pretrained_model_name_or_path=pretrained_model_name_or_path, **kwargs)
 
 class PyramidFuser(nn.Module):
     def __init__(self, dim_deep, dim_shallow, activation="GELU", fusion="concat", upsampling="interpolate", spatial_conv=True):
@@ -87,7 +98,7 @@ class PyramidFuser(nn.Module):
         return x
 
 
-class RoWeederFlat(nn.Module):
+class RoWeederFlat(nn.Module, PyTorchModelHubMixin):
     def __init__(
         self,
         encoder,
@@ -119,6 +130,16 @@ class RoWeederFlat(nn.Module):
                 param.requires_grad = False
         params = filter(lambda p: p.requires_grad, self.parameters())
         return [{"params": params}]
+    
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
+        encoder, embedding_dims = get_segformer_encoder()
+        kwargs["encoder"] = encoder
+        kwargs["embedding_dims"] = embedding_dims
+        if "num_classes" not in kwargs:
+            kwargs["num_classes"] = len(WeedMapDataset.id2class)
+            
+        return super().from_pretrained(pretrained_model_name_or_path=pretrained_model_name_or_path, **kwargs)
 
 
 class MLFuser(nn.Module):

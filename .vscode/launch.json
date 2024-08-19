@@ -5,13 +5,28 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Rotate",
             "type": "python",
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["rotate", "--root", "../Datasets/WeedMap/ortho/003", "--outdir", "dataset/rotated_ortho/003/composite-png", "--angle", "-48"]
+            "args": [
+                "rotate",
+                "--root",
+                "../Datasets/WeedMap/ortho/003",
+                "--outdir",
+                "dataset/rotated_ortho/003/composite-png",
+                "--angle",
+                "-48"
+            ]
         },
         {
             "name": "Patchify_512",
@@ -20,7 +35,15 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["patchify", "--root", "dataset/ortho/003/composite-png", "--outdir", "dataset/patches/512/003", "--patch_size", "512"]
+            "args": [
+                "patchify",
+                "--root",
+                "dataset/ortho/003/composite-png",
+                "--outdir",
+                "dataset/patches/512/003",
+                "--patch_size",
+                "512"
+            ]
         },
         {
             "name": "Patchify_1024",
@@ -29,9 +52,16 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["patchify", "--root", "dataset/ortho/003/composite-png", "--outdir", "dataset/patches/1024/003", "--patch_size", "1024"]
+            "args": [
+                "patchify",
+                "--root",
+                "dataset/ortho/003/composite-png",
+                "--outdir",
+                "dataset/patches/1024/003",
+                "--patch_size",
+                "1024"
+            ]
         },
-
         {
             "name": "Label",
             "type": "python",
@@ -39,7 +69,13 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["label", "--outdir", "dataset/generated_3", "--parameters", "parameters/row_detect/69023956.yaml"]
+            "args": [
+                "label",
+                "--outdir",
+                "dataset/generated_3",
+                "--parameters",
+                "parameters/row_detect/69023956.yaml"
+            ]
         },
         {
             "name": "Experiment",
@@ -48,7 +84,11 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["experiment", "--parameters", "parameters/folds/flat.yaml"]
+            "args": [
+                "experiment",
+                "--parameters",
+                "parameters/folds/flat.yaml"
+            ]
         },
         {
             "name": "Pseudo Test",
@@ -57,7 +97,10 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["test", "--parameters=parameters/test/pseudo.yaml"]
+            "args": [
+                "test",
+                "--parameters=parameters/test/pseudo.yaml"
+            ]
         },
         {
             "name": "Row Test",
@@ -66,7 +109,10 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["row_test", "--parameters=parameters/test_row/flat.yaml"]
+            "args": [
+                "row_test",
+                "--parameters=parameters/test_row/flat.yaml"
+            ]
         },
         {
             "name": "Measure",
@@ -75,7 +121,10 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "args": ["measure", "--parameters=parameters/efficiency/pyramidformer.yaml"]
+            "args": [
+                "measure",
+                "--parameters=parameters/efficiency/pyramidformer.yaml"
+            ]
         },
     ]
 }

@@ -63,6 +63,13 @@ python3 main.py label --outdir dataset/generated --parameters parameters/row_det
 python3 main.py experiment --parameters=parameters/folds/flat.yaml
 ```
 
+## Get the model for inference from HuggingFace hub
+
+```python
+from roweeder.models import RoWeederFlat
+model = RoWeederFlat.from_pretrained("pasqualedem/roweeder_flat_512x512")
+```
+
 ## Citation
 
 If you find this work useful, please consider citing our paper (in press):
