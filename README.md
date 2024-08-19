@@ -1,6 +1,17 @@
 # RoWeeder: Unsupervised Weed Mapping through Crop-Row Detection
 
-## Prepare the environment
+This is official implementation for our CVPPA 2024 paper.
+
+
+RoWeeder is an innovative framework for **unsupervised weed mapping** that combines *crop-row detection* with a *noise-resilient* deep learning model. By leveraging crop-row information to create a pseudo-ground truth, our method trains a lightweight deep learning model capable of distinguishing between crops and weeds, even in the presence of noisy data. 
+
+Evaluated on the WeedMap dataset, RoWeeder achieves an F1 score of 75.3, outperforming several baselines. Comprehensive ablation studies further validated the model's performance. 
+
+By integrating RoWeeder with drone technology, farmers can conduct real-time aerial surveys, enabling precise weed management across large fields.
+
+## Installation
+
+Prepare the environment
 
 ```bash
 conda create -n SSLWeedMap python=3.11
@@ -46,8 +57,21 @@ python3 main.py patchify --root dataset/rotated_ortho/004 --outdir dataset/patch
 python3 main.py label --outdir dataset/generated --parameters parameters/row_detect/69023956.yaml
 ```
 
-### Train the RoWeeder Flat model
+## Train the RoWeeder Flat model
     
 ```bash
 python3 main.py experiment --parameters=parameters/folds/flat.yaml
+```
+
+## Citation
+
+If you find this work useful, please consider citing our paper (in press):
+
+```
+@inproceedings{roweeder,
+  title={RoWeeder: Unsupervised Weed Mapping through Crop-Row Detection},
+  author={Pasquale De Marinis, Gennaro Vessio, Giovanna Castellano},
+  booktitle = {Proceedings of the IEEE/CVF European Conference on Computer Vision (ECCV) Workshops},
+  year={2024}
+}
 ```
