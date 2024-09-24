@@ -2,6 +2,7 @@
 
 This is official implementation for our CVPPA 2024 paper.
 
+![RoWeeder method](res/method.svg)
 
 RoWeeder is an innovative framework for **unsupervised weed mapping** that combines *crop-row detection* with a *noise-resilient* deep learning model. By leveraging crop-row information to create a pseudo-ground truth, our method trains a lightweight deep learning model capable of distinguishing between crops and weeds, even in the presence of noisy data. 
 
