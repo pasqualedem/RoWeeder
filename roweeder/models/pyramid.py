@@ -7,21 +7,25 @@ from huggingface_hub import PyTorchModelHubMixin
 from einops import rearrange
 
 from roweeder.data.weedmap import WeedMapDataset
+from roweeder.models.hub import has_config
 from roweeder.models.utils import RowWeederModelOutput, get_segformer_encoder
 
 
 class RoWeederPyramid(nn.Module, PyTorchModelHubMixin):
+    @has_config
     def __init__(
         self,
         encoder,
-        embedding_dims,
         num_classes,
+        embedding_dims=None,
         fusion="concat",
         upsampling="interpolate",
         spatial_conv=True,
         blocks=4,
     ) -> None:
         super().__init__()
+        if isinstance(encoder, str):
+            encoder, embedding_dims = get_segformer_encoder(encoder)
         self.encoder = encoder
         self.embedding_dims = embedding_dims
         self.blocks = blocks
@@ -99,17 +103,21 @@ class PyramidFuser(nn.Module):
 
 
 class RoWeederFlat(nn.Module, PyTorchModelHubMixin):
+    
+    @has_config
     def __init__(
         self,
         encoder,
-        embedding_dims,
         num_classes,
+        embedding_dims=None,
         fusion="concat",
         upsampling="interpolate",
         spatial_conv=True,
         scale_factors=[2, 4, 8],
     ) -> None:
         super().__init__()
+        if isinstance(encoder, str):
+            encoder, embedding_dims = get_segformer_encoder(encoder)
         self.encoder = encoder
         self.embedding_dims = embedding_dims
 

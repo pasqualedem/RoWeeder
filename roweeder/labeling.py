@@ -119,6 +119,8 @@ def label_from_row(img, mask, row_image, slic_params=None):
     crop_values = row_crop_intersection.unique()
     if len(crop_values) == 1:
         weedmap = torch.stack([~mask, torch.zeros_like(mask), mask])
+        if slic_params is None:
+            return weedmap, None, []
         return weedmap, *slic_label(img, slic_params, weedmap)
     # Remove zeros
     crop_values = crop_values[1:]

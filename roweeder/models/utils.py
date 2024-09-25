@@ -96,5 +96,4 @@ def get_segformer_encoder(version="nvidia/mit-b0"):
 
     encoder = SegformerForImageClassification.from_pretrained(version)
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
-    encoder = encoder.segformer.encoder
     return encoder, embeddings_dims
