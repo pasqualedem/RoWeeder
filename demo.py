@@ -372,10 +372,10 @@ def hough_parameters():
 
 
 if __name__ == "__main__":
-    st.set_page_config(layout="wide", page_icon="🌱", page_title="RoWeeder")
-    st.write(f"# {strings('title')}")
+    st.set_page_config(layout="wide", page_icon="🌱", page_title="RoWeeder", initial_sidebar_state="collapsed")
     with st.sidebar:
         sidebar()
+    st.write(f"# {strings('title')}")
     hough_parameters()
     
     st.write(f"## {strings('image_choose')}")
