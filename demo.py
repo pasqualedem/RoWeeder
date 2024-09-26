@@ -372,7 +372,7 @@ def hough_parameters():
 
 
 if __name__ == "__main__":
-    st.set_page_config(layout="wide")
+    st.set_page_config(layout="wide", page_icon="🌱", page_title="RoWeeder")
     st.write(f"# {strings('title')}")
     with st.sidebar:
         sidebar()
