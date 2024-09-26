@@ -62,7 +62,7 @@ def strings(key):
             "gt": "Annotazioni umane",
             "roweeder_gt_compare": "Utilizzando RoWeeder",
             "lines_gt_compare": "Utilizzando le righe",
-            "roweeder": "RoWeeder è un modello di deep learning che rileva le erbacce in immagini di campi. È stato addestrato su un dataset di immagini di campi e le relative annotazioni di rilevamento delle righe, nonostante ciò se è più accurato del modello di rilevamento delle righe.",
+            "roweeder": "RoWeeder è un modello di deep learning che rileva le erbacce in immagini di campi. È stato addestrato su un dataset di immagini di campi e le relative annotazioni di rilevamento delle righe, nonostante ciò è più accurato del modello di rilevamento delle righe.",
             "roweeder_score": "Punteggio di RoWeeder",
             "lines_score": "Punteggio delle righe",
         },
