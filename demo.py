@@ -22,7 +22,52 @@ from roweeder.labeling import get_drawn_img, label_from_row
 from roweeder.visualize import map_grayscale_to_rgb
 
 import lovely_tensors as lt
+
 lt.monkey_patch()
+
+IMG_SIZE_TWO = 512
+IMG_SIZE_THREE = 400
+
+
+def strings(key):
+    language = st.session_state.get("language", "en")
+    strings = {
+        "en": {
+            "title": "RoWeeder",
+            "image_choose": "Choose an image",
+            "random": "Random!",
+            "image": "Original Image",
+            "plant_detection_mask": "Detected plants",
+            "lines": "Lines",
+            "line_pred": "Line Prediction",
+            "roweeder_pred": "RoWeeder Prediction",
+            "gt_compare": "Ground Truth Comparison",
+            "gt": "Ground Truth",
+            "roweeder_gt_compare": "RoWeeder Prediction",
+            "lines_gt_compare": "Line Prediction",
+            "roweeder": "RoWeeder is a deep learning model that detects weeds in images of fields. It is trained on a dataset of images of fields and their corresponding annotations from lines detection, even tho, it is able to outperform the lines detection model.",
+            "roweeder_score": "RoWeeder F1 Score",
+            "lines_score": "Lines F1 Score",
+        },
+        "it": {
+            "title": "Individuiamo le erbacce con RoWeeder! 🍃🧠",
+            "image_choose": "Scegliamo un'immagine",
+            "random": "A caso!",
+            "image": "Immagine originale",
+            "plant_detection_mask": "Piante rilevate",
+            "lines": "Righe del campo",
+            "line_pred": "Erbacce rilevate",
+            "roweeder_pred": "Erbacce rilevate usando RoWeeder 🧠",
+            "gt_compare": "Confrontiamo con le annotazioni umane! 🧍",
+            "gt": "Annotazioni umane",
+            "roweeder_gt_compare": "Utilizzando RoWeeder",
+            "lines_gt_compare": "Utilizzando le righe",
+            "roweeder": "RoWeeder è un modello di deep learning che rileva le erbacce in immagini di campi. È stato addestrato su un dataset di immagini di campi e le relative annotazioni di rilevamento delle righe, nonostante ciò se è più accurato del modello di rilevamento delle righe.",
+            "roweeder_score": "Punteggio di RoWeeder",
+            "lines_score": "Punteggio delle righe",
+        },
+    }
+    return strings[language][key]
 
 
 def change_state(src, dest):
@@ -52,12 +97,13 @@ def get_roweeder():
             F.Normalize(mean=mean, std=std),
         ]
     )
+
     def predict(x):
         x = preprocess(x)
-        st.write(x)
         with torch.no_grad():
             out = model(x)
         return out
+
     return predict
 
 
@@ -86,6 +132,9 @@ def gt_fix(gt):
 
 
 def display_prediction():
+    img_size_three = st.session_state.get("img_size_three", IMG_SIZE_THREE)
+    img_size_two = st.session_state.get("img_size_two", IMG_SIZE_TWO)
+    
     st_state = st.session_state
     device = st_state["device"]
     if st_state["img_name"] != "":
@@ -123,7 +172,6 @@ def display_prediction():
     )
     res = detector.predict_from_mask(mask)
     lines = res[HoughDetectorDict.LINES]
-    original_lines = res[HoughDetectorDict.ORIGINAL_LINES]
     uniform_significance = res[HoughDetectorDict.UNIFORM_SIGNIFICANCE]
     zero_reason = res[HoughDetectorDict.ZERO_REASON]
 
@@ -139,7 +187,7 @@ def display_prediction():
     weed_map, _, _ = label_from_row(
         img, argmask, torch.tensor(line_mask).permute(2, 0, 1)[0]
     )
-    f1 = f1_score(
+    f1_lines = f1_score(
         weed_map.argmax(dim=0).cuda(),
         gt,
         num_classes=3,
@@ -155,136 +203,191 @@ def display_prediction():
     to_draw_mask = to_draw_mask[0]
     weed_map = np.moveaxis(weed_map, 0, -1)
 
-    st.write(data_dict.name)
-    st.write("f1 score: ", f1)
-    st.write("uniform_significance: ", uniform_significance)
-    st.write("zero_reason: ", zero_reason)
-
     col1, col2 = st.columns(2)
     with col1:
-        st.write("## Image")
+        st.write(f"## {strings('image')}")
         output_img = (img[:3].squeeze(0).permute(1, 2, 0).numpy() * 255).astype(
             np.uint8
         )
         output_img = Image.fromarray(output_img)
-        st.image(output_img, width=300)
+        st.image(output_img, width=IMG_SIZE_TWO)
     with col2:
-        st.write("## Detected plants")
-        st.image(Image.fromarray(to_draw_mask), width=300)
-    # with col2:
-    #     st.write("## GT")
-    #     st.image(Image.fromarray(to_draw_gt), width=300)
+        st.write(f"## {strings('plant_detection_mask')}")
+        st.image(Image.fromarray(to_draw_mask), width=IMG_SIZE_TWO)
     col1, col2 = st.columns(2)
     with col1:
-        st.write("## Prediction using Lines")
-        st.image(weed_map, width=300)
+        st.write(f"## {strings('lines')}")
+        st.image(Image.fromarray(weed_map_lines), width=img_size_two)
     with col2:
-        st.write("## Lines")
-        st.image(Image.fromarray(weed_map_lines), width=300)
+        st.write(f"## {strings('line_pred')}")
+        st.image(weed_map, width=img_size_two)
 
     roweeder_pred = st_state["roweeder"](img[:3].unsqueeze(0).to(device)).logits
-    roweeder_pred = roweeder_pred.argmax(dim=1).cpu().numpy().astype(np.uint8)[0]
-    st.write(roweeder_pred.shape)
-    roweeder_pred = map_grayscale_to_rgb(
-        roweeder_pred, mapping={1: (0, 255, 0), 2: (255, 0, 0)}
+    to_draw_roweeder_pred = (
+        roweeder_pred.argmax(dim=1).cpu().numpy().astype(np.uint8)[0]
     )
-    st.write(roweeder_pred.shape)
-    st.write("## Prediction using RoWeeder")
-    st.image(Image.fromarray(roweeder_pred), width=300)
+    to_draw_roweeder_pred = map_grayscale_to_rgb(
+        to_draw_roweeder_pred, mapping={1: (0, 255, 0), 2: (255, 0, 0)}
+    )
+    f1_roweeder = f1_score(
+        roweeder_pred.argmax(dim=1).cuda()[0],
+        gt,
+        num_classes=3,
+        average="macro",
+        task="multiclass",
+        multidim_average="global",
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write(f"## {strings('roweeder_pred')}")
+        st.image(Image.fromarray(to_draw_roweeder_pred), width=img_size_two)
+    with col2:
+        st.write(f"### {strings('roweeder')}")
+        st.image("https://images.squarespace-cdn.com/content/v1/5800c6211b631b49b4d63657/1517072201941-37JOI5UBDVSD7I4IBF0W/fullyconnected_525.gif?format=1000w", width=img_size_two*0.7)
+
+    st.write(f"# {strings('gt_compare')}")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.write(f"## {strings('lines_gt_compare')}")
+        st.image(Image.fromarray(weed_map), width=img_size_three)
+    with col2:
+        st.write(f"## {strings('gt')}")
+        st.image(Image.fromarray(to_draw_gt), width=img_size_three)
+    with col3:
+        st.write(f"## {strings('roweeder_gt_compare')}")
+        st.image(Image.fromarray(to_draw_roweeder_pred), width=img_size_three)
+        
+    f1_roweeder = f1_roweeder.item().__round__(3)
+    f1_lines = f1_lines.item().__round__(3)
+    
+    st.write(f"### {strings('roweeder_score')}: {f1_roweeder*100}")
+    progress = st.progress(f1_roweeder)
+    
+    st.write(f"### {strings('lines_score')}: {f1_lines*100}")
+    progress = st.progress(f1_lines)
+    
+
+
+def sidebar():
+    st.selectbox("Language", ["en", "it"], key="language", index=1)
+    st.session_state["device"] = torch.device(
+        "cuda" if torch.cuda.is_available() else "cpu"
+    )
+    st.session_state["roweeder"] = get_roweeder()
+    st.text_input(
+        value="dataset/patches/512",
+        key="root",
+        label="root",
+    )
+    st.number_input("img_size_two", key="img_size_two", value=IMG_SIZE_TWO)
+    st.number_input("img_size_three", key="img_size_three", value=IMG_SIZE_THREE)
+    fields = ["000", "001", "002", "003", "004"]
+    dataset = get_dataset(st.session_state["root"], "New Dataset", fields)
+    st.session_state["dataset"] = dataset
+
+
+    st.text_input(value="", label="img_name", key="img_name")
+    st.selectbox(
+        "Vegetation Detector",
+        ["NDVIDetector"],
+        key="vegetation_detector",
+    )
+
+    ndvi_threshold = st.slider(
+        "ndvi_threshold",
+        min_value=0.0,
+        max_value=1.0,
+        step=0.01,
+        value=0.2,
+        key="ndvi_threshold",
+    )
+    st.session_state["labeller"] = get_vegetation_detector(
+        ndvi_threshold=ndvi_threshold
+    )
+
+
+def hough_parameters():
+    with st.expander("Hough Parameters"):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.slider(
+                "threshold",
+                min_value=0,
+                max_value=255,
+                step=1,
+                value=90,
+                key="threshold",
+            )
+            st.slider(
+                "step_theta",
+                min_value=1,
+                max_value=10,
+                step=1,
+                value=1,
+                key="step_theta",
+            )
+            st.slider(
+                "step_rho", min_value=1, max_value=10, step=1, value=1, key="step_rho"
+            )
+            st.number_input(
+                "Fixed theta value that ovverrides the theta mode calculation",
+                key="theta_value",
+                value=None,
+            )
+        with col2:
+            st.slider(
+                "angle_error",
+                min_value=0,
+                max_value=10,
+                step=1,
+                value=3,
+                key="angle_error",
+            )
+            st.slider(
+                "clustering_tol",
+                min_value=0,
+                max_value=20,
+                step=1,
+                value=10,
+                key="clustering_tol",
+            )
+            st.slider(
+                "uniform_significance",
+                min_value=0.0,
+                max_value=1.0,
+                step=0.01,
+                value=0.1,
+                key="uniform_significance",
+            )
+            st.slider(
+                "theta_reduction_threshold",
+                min_value=0.0,
+                max_value=1.0,
+                step=0.01,
+                value=1.0,
+                key="theta_reduction_threshold",
+            )
 
 
 if __name__ == "__main__":
     st.set_page_config(layout="wide")
-
-
+    st.write(f"# {strings('title')}")
     with st.sidebar:
-        st.session_state["device"] = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
-        st.session_state["roweeder"] = get_roweeder()
-        st.text_input(
-            value="dataset/patches/512",
-            key="root",
-            label="root",
-        )
-        fields = ["000", "001", "002", "003", "004"]
-        dataset = get_dataset(st.session_state["root"], "New Dataset", fields)
-        st.session_state["dataset"] = dataset
-
-        st.slider(
-            "i",
-            max_value=len(st.session_state["dataset"]) - 1,
-            step=1,
-            key="slider_i",
-            on_change=lambda: change_state("slider_i", "number_i"),
-        )  # 👈 this is a widget
-        st.number_input(
-            "i",
-            key="number_i",
-            value=0,
-            on_change=lambda: change_state("number_i", "slider_i"),
-        )
-        st.text_input(value="", label="img_name", key="img_name")
-        st.selectbox(
-            "Vegetation Detector",
-            ["NDVIDetector"],
-            key="vegetation_detector",
-        )
-
-        ndvi_threshold = st.slider(
-            "ndvi_threshold",
-            min_value=0.0,
-            max_value=1.0,
-            step=0.01,
-            value=0.2,
-            key="ndvi_threshold",
-        )
-        st.session_state["labeller"] = get_vegetation_detector(
-            ndvi_threshold=ndvi_threshold
-        )
+        sidebar()
+    hough_parameters()
+    
+    st.write(f"## {strings('image_choose')}")
     col1, col2 = st.columns(2)
-    with col1:
-        st.slider(
-            "threshold", min_value=0, max_value=255, step=1, value=150, key="threshold"
-        )
-        st.slider(
-            "step_theta", min_value=1, max_value=10, step=1, value=1, key="step_theta"
-        )
-        st.slider(
-            "step_rho", min_value=1, max_value=10, step=1, value=1, key="step_rho"
-        )
-        st.number_input(
-            "Fixed theta value that ovverrides the theta mode calculation",
-            key="theta_value",
-            value=None,
-        )
-    with col2:
-        st.slider(
-            "angle_error", min_value=0, max_value=10, step=1, value=3, key="angle_error"
-        )
-        st.slider(
-            "clustering_tol",
-            min_value=0,
-            max_value=10,
-            step=1,
-            value=2,
-            key="clustering_tol",
-        )
-        st.slider(
-            "uniform_significance",
-            min_value=0.0,
-            max_value=1.0,
-            step=0.01,
-            value=0.1,
-            key="uniform_significance",
-        )
-        st.slider(
-            "theta_reduction_threshold",
-            min_value=0.0,
-            max_value=1.0,
-            step=0.01,
-            value=1.0,
-            key="theta_reduction_threshold",
-        )
-
+    st.slider(
+        "i",
+        max_value=len(st.session_state["dataset"]) - 1,
+        step=1,
+        key="slider_i",
+        on_change=lambda: change_state("slider_i", "number_i"),
+    )
+    if st.button(f"{strings('random')}"):
+        st.session_state["i"] = np.random.randint(0, len(st.session_state["dataset"]))
+    
     display_prediction()
