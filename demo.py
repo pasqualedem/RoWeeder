@@ -334,7 +334,7 @@ def hough_parameters():
             st.number_input(
                 "Fixed theta value that ovverrides the theta mode calculation",
                 key="theta_value",
-                value=None,
+                value=1.56,
             )
         with col2:
             st.slider(
