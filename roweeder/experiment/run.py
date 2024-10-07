@@ -329,6 +329,8 @@ class Run:
         tot_steps: int,
     ):
         with self.accelerator.no_sync(model=metrics):
+            if len(gt.shape) == 4: # Is One-Hot
+                gt = gt.argmax(dim=1)
             metrics.update(preds, gt)
             metrics_dict = metrics.compute()
         # if tot_steps % self.tracker.log_frequency == 0:

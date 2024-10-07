@@ -380,3 +380,4 @@ dependencies:
       - lovely-numpy==0.2.12
       - lovely-tensors==0.1.15
       - opencv-python==4.9.0.80
+      - ptflops==0.7.4

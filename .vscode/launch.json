@@ -102,7 +102,7 @@
             "args": [
                 "experiment",
                 "--parameters",
-                "parameters/folds/flat.yaml"
+                "parameters/convergence/flat.yaml"
             ]
         },
         {

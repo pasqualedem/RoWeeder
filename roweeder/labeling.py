@@ -243,8 +243,9 @@ def roweeder_label(outdir, param_file):
     for data_dict in bar:
         img = preprocess(data_dict.image)
         with torch.no_grad():
-            logits = roweeder(img).logits
+            logits = roweeder(img).logits[0]
         path, basename = os.path.split(data_dict.name[0])
+        basename, _ = os.path.splitext(basename)
         path, field = os.path.split(os.path.split(path)[0])
         os.makedirs(os.path.join(gt_outdir, field), exist_ok=True)
         out_path = os.path.join(gt_outdir, field, basename)
