@@ -18,7 +18,8 @@ from roweeder.detector import (
     get_vegetation_detector as get_vegetation_detector_fn,
 )
 from roweeder.data import get_dataset
-from roweeder.labeling import get_drawn_img, label_from_row
+from roweeder.labeling import label_from_row
+from roweeder.utils.utils import get_drawn_img
 from roweeder.visualize import map_grayscale_to_rgb
 
 import lovely_tensors as lt

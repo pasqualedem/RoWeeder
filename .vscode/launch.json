@@ -78,6 +78,21 @@
             ]
         },
         {
+            "name": "RoWeeder Label",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "rwlabel",
+                "--outdir",
+                "dataset/roweeder",
+                "--parameters",
+                "parameters/roweeder_label/flat.yaml"
+            ]
+        },
+        {
             "name": "Experiment",
             "type": "python",
             "request": "launch",

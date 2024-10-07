@@ -1,7 +1,9 @@
+from copy import deepcopy
 from enum import Enum
 import os
 import cv2
 import time
+import skimage as ski
 import yaml
 import torch
 import numpy as np
@@ -14,6 +16,7 @@ from io import StringIO
 from typing import Mapping
 from itertools import tee, chain
 from urllib.parse import urlunparse, urlparse
+
 
 
 FLOAT_PRECISIONS = {
@@ -487,3 +490,51 @@ class EasyDict(dict):
     def pop(self, k, d=None):
         delattr(self, k)
         return super(EasyDict, self).pop(k, d)
+
+
+def get_drawn_img(img, theta_rho, color=(255, 255, 255)):
+    """
+    Draws lines on an image based on the given theta-rho parameters.
+
+    Args:
+        img (numpy.ndarray): The input image.
+        theta_rho (list): List of theta-rho parameters for drawing lines.
+        color (tuple, optional): The color of the lines. Defaults to (255, 255, 255).
+
+    Returns:
+        numpy.ndarray: The image with lines drawn on it.
+    """
+    draw_img = np.array(img[:3].transpose(1, 2, 0)).copy()
+    draw_img = draw_img.astype(np.uint8)
+    for i in range(len(theta_rho)):
+        rho = theta_rho[i][0]
+        theta = theta_rho[i][1]
+        a = math.cos(theta)
+        b = math.sin(theta)
+        x0 = a * rho
+        y0 = b * rho
+        pt1 = (int(x0 + 1000 * (-b)), int(y0 + 1000 * (a)))
+        pt2 = (int(x0 - 1000 * (-b)), int(y0 - 1000 * (a)))
+        cv2.line(draw_img, pt1, pt2, color, 4, cv2.LINE_AA)
+    return draw_img
+
+
+def get_slic(img, slic_params):
+    """
+    Get the SLIC segmentation of an image.
+
+    Args:
+        img (numpy.ndarray): The input image.
+        slic_params (dict): Parameters for the SLIC segmentation.
+
+    Returns:
+        numpy.ndarray: The SLIC segmentation.
+    """
+    img = img.permute(1, 2, 0).cpu().numpy()
+    slic_params_cp = deepcopy(slic_params)
+    N = int(np.prod(img.shape[:-1]) * slic_params_cp.pop("percent"))
+    slic_params_cp["n_segments"] = N
+    slic = ski.segmentation.slic(img[:, :, :3], **slic_params_cp)
+    return slic
+
+

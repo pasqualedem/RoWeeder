@@ -1,9 +1,6 @@
-from copy import deepcopy
 import os
-import math
 import torch
 import numpy as np
-import skimage as ski
 import cv2
 
 from torchvision import transforms
@@ -13,103 +10,18 @@ from datetime import datetime
 
 import yaml
 from roweeder.data import get_dataset
-from roweeder.data.utils import DataDict, crop_to_nonzero
+from roweeder.data.utils import DataDict
 
 from roweeder.detector import (
     HoughCropRowDetector,
     HoughDetectorDict,
     get_vegetation_detector,
 )
+from roweeder.utils.utils import get_drawn_img
+from roweeder.utils.utils import get_slic
+from roweeder.data.utils import get_patches
 from roweeder.visualize import map_grayscale_to_rgb
-
-
-def get_drawn_img(img, theta_rho, color=(255, 255, 255)):
-    """
-    Draws lines on an image based on the given theta-rho parameters.
-
-    Args:
-        img (numpy.ndarray): The input image.
-        theta_rho (list): List of theta-rho parameters for drawing lines.
-        color (tuple, optional): The color of the lines. Defaults to (255, 255, 255).
-
-    Returns:
-        numpy.ndarray: The image with lines drawn on it.
-    """
-    draw_img = np.array(img[:3].transpose(1, 2, 0)).copy()
-    draw_img = draw_img.astype(np.uint8)
-    for i in range(len(theta_rho)):
-        rho = theta_rho[i][0]
-        theta = theta_rho[i][1]
-        a = math.cos(theta)
-        b = math.sin(theta)
-        x0 = a * rho
-        y0 = b * rho
-        pt1 = (int(x0 + 1000 * (-b)), int(y0 + 1000 * (a)))
-        pt2 = (int(x0 - 1000 * (-b)), int(y0 - 1000 * (a)))
-        cv2.line(draw_img, pt1, pt2, color, 4, cv2.LINE_AA)
-    return draw_img
-
-
-def get_slic(img, slic_params):
-    """
-    Get the SLIC segmentation of an image.
-
-    Args:
-        img (numpy.ndarray): The input image.
-        slic_params (dict): Parameters for the SLIC segmentation.
-
-    Returns:
-        numpy.ndarray: The SLIC segmentation.
-    """
-    img = img.permute(1, 2, 0).cpu().numpy()
-    slic_params_cp = deepcopy(slic_params)
-    N = int(np.prod(img.shape[:-1]) * slic_params_cp.pop("percent"))
-    slic_params_cp["n_segments"] = N
-    slic = ski.segmentation.slic(img[:, :, :3], **slic_params_cp)
-    return slic
-
-
-def get_patches(img, weedmap, slic_map):
-    """
-    Get the patches of the image based on the SLIC segmentation and their class
-
-    Args:
-        img (numpy.ndarray): The input image.
-        weedmap (numpy.ndarray): The weed map. 0 for background, 1 for crop, 2 for weed.
-        slic_map (numpy.ndarray): The SLIC segmentation.
-
-    Returns:
-        list: List of patches.
-    """
-    MIN_HEIGHT = 10
-    MIN_WIDTH = 10
-    MIN_PLANT_PERCENT = 0.1
-    patches = []
-    slic_map = torch.tensor(slic_map)
-    weedmap = weedmap.argmax(dim=0).cpu()
-    weedmap_slic = torch.zeros_like(slic_map)
-    for i in np.unique(slic_map):
-        mask = slic_map == i
-        plant_mask = mask * weedmap
-        if plant_mask.sum() == 0:
-            continue
-        patch_mask = crop_to_nonzero(plant_mask)
-        min_size = (
-            patch_mask.shape[0] >= MIN_HEIGHT
-            and patch_mask.shape[1] >= MIN_WIDTH
-        )
-        values, counts = torch.unique(patch_mask, return_counts=True)
-        complete_counts = torch.zeros(3, dtype=int)
-        complete_counts[values] = counts
-        if values.sum() == 0:
-            continue
-        label = complete_counts[1:].argmax() + 1
-        min_percent = complete_counts[label] >= (MIN_PLANT_PERCENT * complete_counts.sum())
-        patch = crop_to_nonzero(mask * img)
-        weedmap_slic[plant_mask.bool()] = label
-        if min_size and min_percent:
-            patches.append((patch, label-1))
-    return weedmap_slic, patches
+from roweeder.models import RoWeederFlat, RoWeederPyramid
 
 
 def label_from_row(img, mask, row_image, slic_params=None):
@@ -299,3 +211,44 @@ def label(
         cv2.imwrite(img_out_path_slic, weed_map_slic)
         if interactive:
             yield i
+
+
+def roweeder_label(outdir, param_file):
+    """
+    Label the dataset using the RoWeeder model. Saves the logits predictions.
+    
+    Args:
+        outdir (str): The output directory.
+        param_file (str): The path to the parameter file.
+    """
+    with open(param_file, "r") as f:
+        params = yaml.safe_load(f)
+    dataset_params = params["dataset_params"]
+    hf_path = params["hf_path"]
+    gt_outdir = os.path.join(outdir, "pseudogt")
+    os.makedirs(gt_outdir, exist_ok=True)
+    
+    mean = torch.tensor([0.485, 0.456, 0.406])
+    std = torch.tensor([0.229, 0.224, 0.225])
+    preprocess = transforms.Compose(
+        [
+            transforms.Normalize(mean=mean, std=std),
+        ]
+    )
+    dataset = get_dataset(**dataset_params)
+    roweeder = RoWeederFlat.from_pretrained(hf_path)
+
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1)
+    bar = tqdm(dataloader, total=len(dataloader))
+    for data_dict in bar:
+        img = preprocess(data_dict.image)
+        with torch.no_grad():
+            logits = roweeder(img).logits
+        path, basename = os.path.split(data_dict.name[0])
+        path, field = os.path.split(os.path.split(path)[0])
+        os.makedirs(os.path.join(gt_outdir, field), exist_ok=True)
+        out_path = os.path.join(gt_outdir, field, basename)
+        logits = logits.cpu().numpy()
+        np.save(out_path, logits)
+        bar.set_description(f"Processed {basename}")
+    

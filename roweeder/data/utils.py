@@ -1,3 +1,4 @@
+import numpy as np
 from roweeder.utils.utils import EasyDict
 from enum import Enum, StrEnum
 
@@ -95,3 +96,46 @@ def extract_plants(image: torch.Tensor, plant_mask: torch.Tensor):
         plant = image * (plant_mask == plant_id)
         plants.append(crop_to_nonzero(plant))
     return pad_patches(plants)[0]
+
+
+def get_patches(img, weedmap, slic_map):
+    """
+    Get the patches of the image based on the SLIC segmentation and their class
+
+    Args:
+        img (numpy.ndarray): The input image.
+        weedmap (numpy.ndarray): The weed map. 0 for background, 1 for crop, 2 for weed.
+        slic_map (numpy.ndarray): The SLIC segmentation.
+
+    Returns:
+        list: List of patches.
+    """
+    MIN_HEIGHT = 10
+    MIN_WIDTH = 10
+    MIN_PLANT_PERCENT = 0.1
+    patches = []
+    slic_map = torch.tensor(slic_map)
+    weedmap = weedmap.argmax(dim=0).cpu()
+    weedmap_slic = torch.zeros_like(slic_map)
+    for i in np.unique(slic_map):
+        mask = slic_map == i
+        plant_mask = mask * weedmap
+        if plant_mask.sum() == 0:
+            continue
+        patch_mask = crop_to_nonzero(plant_mask)
+        min_size = (
+            patch_mask.shape[0] >= MIN_HEIGHT
+            and patch_mask.shape[1] >= MIN_WIDTH
+        )
+        values, counts = torch.unique(patch_mask, return_counts=True)
+        complete_counts = torch.zeros(3, dtype=int)
+        complete_counts[values] = counts
+        if values.sum() == 0:
+            continue
+        label = complete_counts[1:].argmax() + 1
+        min_percent = complete_counts[label] >= (MIN_PLANT_PERCENT * complete_counts.sum())
+        patch = crop_to_nonzero(mask * img)
+        weedmap_slic[plant_mask.bool()] = label
+        if min_size and min_percent:
+            patches.append((patch, label-1))
+    return weedmap_slic, patches
