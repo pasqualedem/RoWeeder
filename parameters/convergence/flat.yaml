@@ -40,7 +40,6 @@ parameters:
     components:
       - focal:
           weight: 1.0
-          logits_target: [True]
 
   model:
     name: [flat] # path to model class or model name contained in EzDL or super-gradients

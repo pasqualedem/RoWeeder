@@ -6,16 +6,15 @@ from .utils import get_reduction
 
 class FocalLoss(Module):
     def __init__(
-        self, gamma: float = 2.0, reduction: str = "mean", logits_target=False, **kwargs
+        self, gamma: float = 2.0, reduction: str = "mean", **kwargs
     ):
         super().__init__()
         self.gamma = gamma
-        self.logits_target = logits_target
 
         self.reduction = get_reduction(reduction)
 
     def __call__(self, x, target, weight_matrix=None, **kwargs):
-        if self.logits_target:
+        if len(target.shape) == 4:
             target = target.softmax(dim=1)
         ce_loss = F.cross_entropy(x, target, reduction="none")
         pt = torch.exp(-ce_loss)
