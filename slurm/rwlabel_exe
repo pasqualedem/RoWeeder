@@ -1,0 +1,6 @@
+#!/bin/bash
+
+conda init
+conda activate SSLWeedMap
+export TMPDIR=./tmp
+python main.py rwlabel --outdir dataset/roweeder --parameters parameters/roweeder_label/flat.yaml
