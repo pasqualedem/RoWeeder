@@ -76,11 +76,12 @@ model = RoWeederFlat.from_pretrained("pasqualedem/roweeder_flat_512x512")
 If you find this work useful, please consider citing our paper (in press):
 
 ```
-@inproceedings{roweeder,
+@inproceedings{de2025roweeder,
   title={RoWeeder: Unsupervised Weed Mapping through Crop-Row Detection},
-  author={Pasquale De Marinis, Gennaro Vessio, Giovanna Castellano},
-  booktitle = {Proceedings of the IEEE/CVF European Conference on Computer Vision (ECCV) Workshops},
-  year={2024}
-  note={in press}
+  author={De Marinis, Pasquale and Vessio, Gennaro and Castellano, Giovanna},
+  booktitle={European Conference on Computer Vision},
+  pages={132--145},
+  year={2025},
+  organization={Springer}
 }
 ```
