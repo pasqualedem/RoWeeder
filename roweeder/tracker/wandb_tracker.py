@@ -460,6 +460,8 @@ class WandBLogger(AbstractLogger):
         for b in range(gt.shape[0]):
             image = images[b].permute(1, 2, 0).detach().cpu().numpy()
             sample_gt = gt[b].detach().cpu().numpy()
+            if len(sample_gt.shape) == 3:
+                sample_gt = sample_gt.argmax(axis=0) 
             sample_pred = pred[b].detach().cpu().numpy()
 
             if tracker_task == "segmentation":

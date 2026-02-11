@@ -15,10 +15,8 @@ By integrating RoWeeder with drone technology, farmers can conduct real-time aer
 Prepare the environment
 
 ```bash
-conda create -n SSLWeedMap python=3.11
-conda activate SSLWeedMap
-# Install from environment.yml
-conda env update --file environment.yml
+uv sync
+source .venv/bin/activate
 ```
 
 ## Preprocessing

@@ -52,7 +52,7 @@ def build_roweeder_pyramid(
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
     embeddings_dims = embeddings_dims[:blocks]
     num_classes = len(WeedMapDataset.id2class)
-    model = RoWeederPyramid(encoder, num_classes, embeddings_dims, fusion=fusion, upsampling=upsampling, blocks=blocks, spatial_conv=spatial_conv)
+    model = RoWeederPyramid(encoder=encoder, num_classes=num_classes, embedding_dims=embeddings_dims, fusion=fusion, upsampling=upsampling, blocks=blocks, spatial_conv=spatial_conv)
     if checkpoint is not None:
         chkpt = torch_dict_load(checkpoint)
         load_state_dict(model, chkpt)
@@ -72,7 +72,7 @@ def build_roweeder_flat(
     embeddings_dims = SegformerConfig.from_pretrained(version).hidden_sizes
     embeddings_dims = embeddings_dims[:blocks]
     num_classes = len(WeedMapDataset.id2class)
-    model = RoWeederFlat(encoder, num_classes, embeddings_dims, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
+    model = RoWeederFlat(encoder=encoder, num_classes=num_classes, embedding_dims=embeddings_dims, fusion=fusion, upsampling=upsampling, spatial_conv=spatial_conv)
     if checkpoint is not None:
         chkpt = torch_dict_load(checkpoint)
         load_state_dict(model, chkpt)

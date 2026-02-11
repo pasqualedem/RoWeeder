@@ -88,7 +88,6 @@ class Run:
         ]
         logger.info("Creating Accelerator")
         self.accelerator = Accelerator(
-            even_batches=False,
             kwargs_handlers=kwargs,
             split_batches=False,
             mixed_precision=self.train_params.get("precision", None),
@@ -329,6 +328,8 @@ class Run:
         tot_steps: int,
     ):
         with self.accelerator.no_sync(model=metrics):
+            if len(gt.shape) == 4: # Is One-Hot
+                gt = gt.argmax(dim=1)
             metrics.update(preds, gt)
             metrics_dict = metrics.compute()
         # if tot_steps % self.tracker.log_frequency == 0:

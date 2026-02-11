@@ -11,7 +11,7 @@ from roweeder.utils.grid import make_grid
 from roweeder.utils.utils import load_yaml
 
 from roweeder.data.spring_wheat import SpringWheatDataset, SpringWheatMaskedDataset
-from roweeder.labeling import label as label_fn, load_and_label
+from roweeder.labeling import label as label_fn, load_and_label, roweeder_label
 from roweeder.detector import ModifiedHoughCropRowDetector
 from roweeder.utils.utils import get_square_from_lines
 from roweeder.preprocess import divide_ortho_into_patches, rotate_ortho
@@ -19,6 +19,7 @@ from roweeder.preprocess import divide_ortho_into_patches, rotate_ortho
 DATA_ROOT = "dataset/processed"
 CROP_ROWS_PATH = "dataset/crop_rows"
 OUTDIR = "dataset/generated"
+RWOUTDIR = "dataset/rwgenerated"
 PARAMETERS = "parameters.yaml"
 
 
@@ -153,6 +154,17 @@ def label(outdir, parameters):
     :param parameters: Parameters file
     """
     load_and_label(outdir, param_file=parameters)
+    
+
+@main.command("rwlabel")
+@click.option("--outdir", default=OUTDIR, type=click.STRING)
+@click.option("--parameters", default=PARAMETERS, type=click.STRING)
+def label(outdir, parameters):
+    """
+    :param outdir: Output directory
+    :param parameters: Parameters file
+    """
+    roweeder_label(outdir, param_file=parameters)
 
 
 if __name__ == '__main__':

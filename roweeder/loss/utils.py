@@ -14,7 +14,9 @@ def get_reduction(reduction: str):
         raise NotImplementedError(f"Invalid reduction mode: {reduction}")
     
     
-def get_weight_matrix_from_labels(labels, num_classes, ignore_index=-100):  
+def get_weight_matrix_from_labels(labels, num_classes, ignore_index=-100):
+    if len(labels.shape) == 4:
+        labels = labels.argmax(dim=1)
     there_is_ignore = ignore_index in labels
     if there_is_ignore:
         weight_labels = labels.clone()

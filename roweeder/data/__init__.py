@@ -184,9 +184,9 @@ def get_testloader(dataset_params, dataloader_params, transforms, target_transfo
     )
 
 
-def get_dataset(root, modality, fields):
+def get_dataset(root, modality, fields, channels=None):
     dataclass = WeedMapDataset
-    channels = ["R", "G", "B", "NIR", "RE"]
+    channels = channels or ["R", "G", "B", "NIR", "RE"]
     input_transform = lambda x: x / 255.0
 
     args = dict(

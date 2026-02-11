@@ -7,8 +7,9 @@ import torchvision.transforms.functional as FV
 
 from roweeder.data.utils import DataDict, crop_to_nonzero
 from roweeder.detector import HoughDetectorDict
-from roweeder.labeling import get_drawn_img, get_slic, label_from_row
 from roweeder.models.utils import ModelOutput
+from roweeder.utils.utils import get_drawn_img, get_slic
+
 
 class HoughSLICSegmentationWrapper(nn.Module):
     classificator_size = (224, 224)

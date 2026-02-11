@@ -1,0 +1,12 @@
+dataset_params:
+  fields:
+  - '000'
+  - '001'
+  - '002'
+  - '003'
+  - '004'
+  modality: New Dataset
+  root: dataset/patches/512
+  channels: ["R", "G", "B"]
+hf_path:
+  pasqualedem/roweeder_flat_512x512

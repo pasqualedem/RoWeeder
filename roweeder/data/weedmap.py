@@ -3,6 +3,7 @@ import os
 import torch
 import torchvision
 import cv2
+import numpy as np
 
 from torch.utils.data import Dataset
 
@@ -57,13 +58,19 @@ class WeedMapDataset(Dataset):
         return len(self.index)
     
     def _get_gt(self, gt_path):
-        gt = torchvision.io.read_image(gt_path)
-        gt = gt[[2, 1, 0], ::]
-        gt = gt.argmax(dim=0)
-        gt = self.target_transform(gt)
-        return gt
+        if gt_path.endswith(".png"):
+            gt = torchvision.io.read_image(gt_path)
+            gt = gt[[2, 1, 0], ::]
+            gt = gt.argmax(dim=0)
+            gt = self.target_transform(gt)
+            return gt
+        if gt_path.endswith(".npy"):
+            gt = torch.tensor(np.load(gt_path))
+            return gt
     
     def _get_image(self, field, filename):
+        filename, _ = os.path.splitext(filename)
+        filename += ".png"
         channels = []
         for channel_folder in self.channels:
             channel_path = os.path.join(
@@ -178,7 +185,8 @@ class SelfSupervisedWeedMapDataset(WeedMapDataset):
         self.max_plants = max_plants
     def __getitem__(self, i):
         data_dict = super().__getitem__(i)
-        
+        if len(data_dict.target.shape) == 3: # Target is logits, we can't extract plants # Not implemented yet
+            return data_dict
         connected_components = torch.tensor(cv2.connectedComponents(data_dict.target.numpy().astype('uint8'))[1])
         crops_mask = data_dict.target == LABELS.CROP.value
         crops_mask = connected_components * crops_mask
@@ -200,10 +208,8 @@ class SelfSupervisedWeedMapDataset(WeedMapDataset):
         return data_dict
         
     def collate_fn(self, batch):
-        crops = [item.crops for item in batch]
-        weeds = [item.weeds for item in batch]
-        crops = pad_patches(crops)
-        weeds = pad_patches(weeds)
+        crops = pad_patches([item.crops for item in batch]) if "crops" in batch[0] else None
+        weeds = pad_patches([item.weeds for item in batch]) if "weeds" in batch[0] else None
         return DataDict(
             image=torch.stack([item.image for item in batch]),
             target=torch.stack([item.target for item in batch]),

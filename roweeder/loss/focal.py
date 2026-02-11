@@ -14,6 +14,8 @@ class FocalLoss(Module):
         self.reduction = get_reduction(reduction)
 
     def __call__(self, x, target, weight_matrix=None, **kwargs):
+        if len(target.shape) == 4:
+            target = target.softmax(dim=1)
         ce_loss = F.cross_entropy(x, target, reduction="none")
         pt = torch.exp(-ce_loss)
         if weight_matrix is not None:
