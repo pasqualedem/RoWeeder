@@ -88,7 +88,6 @@ class Run:
         ]
         logger.info("Creating Accelerator")
         self.accelerator = Accelerator(
-            even_batches=False,
             kwargs_handlers=kwargs,
             split_batches=False,
             mixed_precision=self.train_params.get("precision", None),

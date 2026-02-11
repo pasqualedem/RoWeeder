@@ -133,8 +133,8 @@ def gt_fix(gt):
 
 
 def display_prediction():
-    img_size_three = st.session_state.get("img_size_three", IMG_SIZE_THREE)
-    img_size_two = st.session_state.get("img_size_two", IMG_SIZE_TWO)
+    img_size_three = int(st.session_state.get("img_size_three", IMG_SIZE_THREE))
+    img_size_two = int(st.session_state.get("img_size_two", IMG_SIZE_TWO))
     
     st_state = st.session_state
     device = st_state["device"]
@@ -179,7 +179,7 @@ def display_prediction():
     gt = gt_fix(torch.tensor(np.array(gt))).cuda()
 
     to_draw_gt = (gt.cpu().numpy()).astype(np.uint8)
-    to_draw_gt = map_grayscale_to_rgb(to_draw_gt)
+    to_draw_gt = map_grayscale_to_rgb(to_draw_gt, mapping={1: (0, 0, 255), 2: (255, 0, 0)})
     to_draw_mask = mask.cpu().numpy().astype(np.uint8)
     line_mask = get_drawn_img(
         torch.zeros_like(torch.tensor(to_draw_mask)).numpy(), lines, color=(255, 0, 255)
@@ -198,7 +198,7 @@ def display_prediction():
     )
     weed_map = weed_map.argmax(dim=0).cpu().numpy().astype(np.uint8)
     weed_map = map_grayscale_to_rgb(
-        weed_map, mapping={1: (0, 255, 0), 2: (255, 0, 0)}
+        weed_map, mapping={1: (0, 0, 255), 2: (255, 0, 0)}
     ).transpose(2, 0, 1)
     weed_map_lines = get_drawn_img(weed_map, lines, color=(255, 0, 255))
     to_draw_mask = to_draw_mask[0]
@@ -228,7 +228,7 @@ def display_prediction():
         roweeder_pred.argmax(dim=1).cpu().numpy().astype(np.uint8)[0]
     )
     to_draw_roweeder_pred = map_grayscale_to_rgb(
-        to_draw_roweeder_pred, mapping={1: (0, 255, 0), 2: (255, 0, 0)}
+        to_draw_roweeder_pred, mapping={1: (0, 0, 255), 2: (255, 0, 0)}
     )
     f1_roweeder = f1_score(
         roweeder_pred.argmax(dim=1).cuda()[0],
@@ -245,7 +245,7 @@ def display_prediction():
         st.image(Image.fromarray(to_draw_roweeder_pred), width=img_size_two)
     with col2:
         st.write(f"### {strings('roweeder')}")
-        st.image("https://images.squarespace-cdn.com/content/v1/5800c6211b631b49b4d63657/1517072201941-37JOI5UBDVSD7I4IBF0W/fullyconnected_525.gif?format=1000w", width=img_size_two*0.7)
+        st.image("https://images.squarespace-cdn.com/content/v1/5800c6211b631b49b4d63657/1517072201941-37JOI5UBDVSD7I4IBF0W/fullyconnected_525.gif?format=1000w", width=int(img_size_two*0.7))
 
     st.write(f"# {strings('gt_compare')}")
 
